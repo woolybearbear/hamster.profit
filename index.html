@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>鼠舍帳本</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--c0:#ECE9E4;--c1:#D6D3CE;--c2:#B5BDC5;--c3:#919BA6;--ink:#1C1C1C;--inkM:#555;--inkF:#999;--w:#FAFAF9;--pos:#3F5F4A;--posL:#8fba97;--neg:#7A3F3F;--negL:#c4837e}
+html,body{height:100%;overflow:hidden;background:var(--c0);font-family:'Noto Serif TC',serif}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--c0)}
+.page{flex:1;overflow-y:auto;padding-bottom:80px}
+input,select,button{font-family:'Noto Serif TC',serif}
+input::placeholder{color:var(--c1)}
+input:focus,select:focus{outline:none;border-bottom-color:var(--c3)!important}
+::-webkit-scrollbar{width:0}
+
+/* Splash */
+#splash{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:48px;z-index:1000;transition:opacity 0.5s ease}
+#splash.hide{opacity:0;pointer-events:none}
+.splash-logo{text-align:center}
+.splash-title{font-size:36px;color:var(--c0);letter-spacing:0.2em;font-weight:300;margin-bottom:8px;animation:logoIn 1s ease both}
+.splash-sub{font-size:11px;color:var(--c3);letter-spacing:0.3em}
+.dots{display:flex;gap:6px;animation:fadeIn 0.4s ease 0.6s both}
+.dot{width:4px;height:14px;background:var(--c3);border-radius:2px}
+.dot:nth-child(1){animation:bounce 1s ease-in-out 0s infinite}
+.dot:nth-child(2){animation:bounce 1s ease-in-out 0.15s infinite}
+.dot:nth-child(3){animation:bounce 1s ease-in-out 0.3s infinite}
+
+/* Animations */
+@keyframes logoIn{from{opacity:0;letter-spacing:0.5em}to{opacity:1;letter-spacing:0.2em}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes bounce{0%,80%,100%{transform:scaleY(0.4)}40%{transform:scaleY(1)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes modalIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.anim{animation:slideUp 0.3s ease both}
+.anim2{animation:slideUp 0.3s ease 0.06s both}
+.anim3{animation:slideUp 0.3s ease 0.12s both}
+.anim4{animation:slideUp 0.3s ease 0.18s both}
+.anim5{animation:slideUp 0.3s ease 0.24s both}
+
+/* Bottom nav */
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--w);border-top:1px solid var(--c0);display:flex;align-items:center;padding-bottom:env(safe-area-inset-bottom,0);z-index:100}
+.nav-btn{flex:1;padding:12px 0 10px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform 0.15s}
+.nav-btn:active{transform:scale(0.92)}
+.nav-dot{width:18px;height:2px;border-radius:1px;background:transparent;transition:background 0.2s}
+.nav-dot.active{background:var(--ink)}
+.nav-label{font-size:10px;color:var(--inkF);font-weight:400;transition:all 0.2s;letter-spacing:0.04em}
+.nav-label.active{color:var(--ink);font-weight:700}
+.fab{width:50px;height:50px;border-radius:50%;background:var(--ink);border:none;color:white;font-size:26px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(28,28,28,0.3);transition:transform 0.15s;line-height:1;padding-bottom:2px}
+.fab:active{transform:scale(0.9)}
+
+/* Cards */
+.card{background:var(--w);border-radius:16px;margin:0 14px 10px;overflow:hidden;transition:transform 0.15s}
+.card:active{transform:scale(0.985)}
+
+/* Buttons */
+.btn{width:100%;padding:13px;border-radius:12px;border:none;background:var(--ink);color:var(--w);font-family:'Noto Serif TC',serif;font-size:13px;font-weight:700;letter-spacing:0.08em;cursor:pointer;transition:transform 0.15s,opacity 0.2s}
+.btn:active{transform:scale(0.97)}
+.btn:disabled{background:var(--c1);color:var(--c3);cursor:default}
+.btn.outline{background:transparent;border:1.5px solid var(--c1);color:var(--ink)}
+
+/* Modal */
+.overlay{position:fixed;inset:0;background:rgba(28,28,28,0.45);backdrop-filter:blur(4px);z-index:400;animation:fadeIn 0.25s ease}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--w);border-radius:24px 24px 0 0;max-height:88vh;overflow:hidden;display:flex;flex-direction:column;z-index:401;animation:modalIn 0.35s cubic-bezier(0.22,1,0.36,1)}
+.sheet-head{padding:16px 20px 12px;border-bottom:1px solid var(--c0);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sheet-body{overflow-y:auto;padding:16px 20px 40px;flex:1}
+
+/* Form */
+.field{margin-bottom:18px}
+.field label{display:block;font-size:10px;font-weight:600;letter-spacing:0.12em;color:var(--c3);text-transform:uppercase;margin-bottom:5px}
+.field input,.field select{width:100%;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:14px;color:var(--ink);display:block}
+.field select{appearance:none;-webkit-appearance:none}
+
+/* Header dark */
+.dark-head{background:var(--ink);padding:52px 20px 20px;border-radius:0 0 28px 28px;margin-bottom:14px;color:var(--c0)}
+
+/* Tag */
+.tag{display:inline-block;font-size:9px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:0.06em}
+
+/* Toggle */
+.toggle{display:flex;background:var(--c0);border-radius:12px;padding:3px;margin-bottom:18px}
+.toggle button{flex:1;padding:9px;border:none;border-radius:10px;font-family:'Noto Serif TC',serif;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s}
+
+/* Bar */
+.bar-wrap{height:3px;background:rgba(0,0,0,0.08);border-radius:2px;overflow:hidden;margin:6px 0}
+.bar-fill{height:100%;border-radius:2px;background:var(--c3);transition:width 0.5s cubic-bezier(0.22,1,0.36,1)}
+
+/* Stat grid */
+.stat-grid{display:grid}
+.stat-cell{padding:9px 12px;border-right:1px solid var(--c0)}
+.stat-cell:last-child{border-right:none}
+.stat-cell .sl{font-size:9px;color:var(--c3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px}
+.stat-cell .sv{font-size:14px;color:var(--ink)}
+.stat-cell.dark .sl{color:rgba(255,255,255,0.4)}
+.stat-cell.dark .sv{color:var(--c0)}
+.stat-cell.dark{border-color:rgba(255,255,255,0.1)}
+
+/* Section title */
+.sec-title{display:flex;justify-content:space-between;align-items:center;padding:18px 16px 8px}
+.sec-title span{font-size:10px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase}
+
+/* View tabs */
+.view-tabs{display:flex;background:var(--c0);border-radius:12px;padding:3px;margin:0 14px 12px}
+.view-tab{flex:1;padding:9px;border:none;border-radius:10px;font-family:'Noto Serif TC',serif;font-size:11px;font-weight:400;color:var(--inkF);cursor:pointer;transition:all 0.2s;background:transparent}
+.view-tab.active{background:var(--w);color:var(--ink);font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+
+/* Onboarding */
+#onboard{position:fixed;inset:0;background:var(--w);z-index:900;display:flex;flex-direction:column}
+.ob-body{flex:1;padding:60px 28px 20px;overflow-y:auto}
+.ob-foot{padding:0 28px 40px;display:flex;flex-direction:column;gap:10px}
+.ob-step{font-size:10px;letter-spacing:0.28em;color:var(--c3);text-transform:uppercase;margin-bottom:10px}
+.ob-title{font-size:34px;color:var(--ink);margin-bottom:6px;font-weight:300;line-height:1.1}
+.ob-sub{font-size:13px;color:var(--c3);margin-bottom:36px}
+
+/* Profile circle */
+.avatar{width:52px;height:52px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:22px;color:var(--c1);flex-shrink:0}
+</style>
+</head>
+<body>
+<div id="app" style="display:none">
+  <!-- Bottom nav -->
+  <div id="nav">
+    <button class="nav-btn" onclick="goNav('home')" id="nb-home">
+      <div class="nav-dot" id="nd-home"></div>
+      <div class="nav-label" id="nl-home">首頁</div>
+    </button>
+    <button class="nav-btn" onclick="goNav('products')" id="nb-products">
+      <div class="nav-dot" id="nd-products"></div>
+      <div class="nav-label" id="nl-products">商品</div>
+    </button>
+    <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:8px 0">
+      <button class="fab" onclick="openEntry()">+</button>
+    </div>
+    <button class="nav-btn" onclick="goNav('report')" id="nb-report">
+      <div class="nav-dot" id="nd-report"></div>
+      <div class="nav-label" id="nl-report">報表</div>
+    </button>
+    <button class="nav-btn" onclick="goNav('me')" id="nb-me">
+      <div class="nav-dot" id="nd-me"></div>
+      <div class="nav-label" id="nl-me">我的</div>
+    </button>
+  </div>
+  <!-- Pages -->
+  <div id="page-home"  class="page" style="display:none"></div>
+  <div id="page-products" class="page" style="display:none"></div>
+  <div id="page-report"   class="page" style="display:none"></div>
+  <div id="page-me"       class="page" style="display:none"></div>
+</div>
+
+<!-- Splash -->
+<div id="splash">
+  <div class="splash-logo">
+    <div class="splash-title">Rodent</div>
+    <div class="splash-sub">鼠舍帳本</div>
+    <div style="height:1px;background:linear-gradient(to right,transparent,var(--c3),transparent);margin-top:12px;animation:fadeIn 1s ease 0.4s both"></div>
+  </div>
+  <div class="dots">
+    <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+  </div>
+</div>
+
+<!-- Onboarding -->
+<div id="onboard" style="display:none">
+  <div class="ob-body" id="ob-body"></div>
+  <div class="ob-foot" id="ob-foot"></div>
+</div>
+
+<!-- Quick entry modal -->
+<div id="entry-overlay" style="display:none" onclick="if(event.target===this)closeEntry()">
+  <div class="overlay" onclick="closeEntry()"></div>
+  <div class="sheet">
+    <div class="sheet-head">
+      <div style="font-size:15px;font-weight:700;color:var(--ink)">快速記帳</div>
+      <button onclick="closeEntry()" style="background:none;border:none;font-size:22px;color:var(--c3);cursor:pointer;line-height:1">×</button>
+    </div>
+    <div class="sheet-body" id="entry-body"></div>
+  </div>
+</div>
+
+<script>
+// ── Storage
+const KEY = 'rodent-v2';
+const save = d => { try{ localStorage.setItem(KEY,JSON.stringify(d)); }catch(e){} };
+const load = () => { try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; } };
+
+// ── Utils
+const uid = () => Date.now()+'-'+Math.random().toString(36).slice(2,6);
+const today = () => new Date().toISOString().slice(0,10);
+const fmt = n => isNaN(n)||n===''?'—':'NT$ '+Number(n).toFixed(0);
+const fmtD = d => d?d.slice(5).replace('-','/') : '';
+const fmtM = d => d?d.slice(0,7).replace('-','年')+'月':'';
+
+const INCOME_CATS  = ['鼠鼠販售','主食糧','零食點心','用品墊材','其他收入'];
+const EXPENSE_CATS = ['原料支出','包材支出','其他支出'];
+const CATEGORIES   = ['自配糧','零食點心','墊材','玩具','其他商品'];
+const UNITS        = ['包','罐','份','盒','個','kg','g'];
+
+let DATA = null;
+let currentNav = 'home';
+let entryType = 'income';
+
+// ── Init
+window.onload = () => {
+  setTimeout(() => {
+    const stored = load();
+    if(stored && stored.profile && stored.profile.name) {
+      DATA = stored;
+      hideSplash(() => showApp());
+    } else {
+      hideSplash(() => showOnboard(0));
+    }
+  }, 2200);
+};
+
+function hideSplash(cb) {
+  const s = document.getElementById('splash');
+  s.classList.add('hide');
+  setTimeout(cb, 500);
+}
+
+// ── Onboarding
+let obStep = 0;
+let obProfile = {name:'',shopName:'',phone:'',note:''};
+
+function showOnboard(step) {
+  obStep = step;
+  document.getElementById('onboard').style.display = 'flex';
+  const body = document.getElementById('ob-body');
+  const foot = document.getElementById('ob-foot');
+
+  if(step === 0) {
+    body.innerHTML = `
+      <div class="ob-step">01 / 02</div>
+      <div class="ob-title">你好！</div>
+      <div class="ob-sub">請告訴我一點關於你的事</div>
+      <div class="field anim"><label>你的名字</label><input id="ob-name" placeholder="例：小嗚" value="${obProfile.name}" oninput="obProfile.name=this.value"/></div>
+      <div class="field anim2"><label>鼠舍名稱</label><input id="ob-shop" placeholder="例：嗚粒鼠舍" value="${obProfile.shopName}" oninput="obProfile.shopName=this.value"/></div>
+    `;
+    foot.innerHTML = `<button class="btn" onclick="obNext()">繼續</button>`;
+  } else {
+    body.innerHTML = `
+      <div class="ob-step">02 / 02</div>
+      <div class="ob-title">聯絡資訊</div>
+      <div class="ob-sub">選填，方便備查</div>
+      <div class="field anim"><label>聯絡電話</label><input placeholder="選填" value="${obProfile.phone}" oninput="obProfile.phone=this.value"/></div>
+      <div class="field anim2"><label>備註</label><input placeholder="例：主要銷售台北" value="${obProfile.note}" oninput="obProfile.note=this.value"/></div>
+    `;
+    foot.innerHTML = `
+      <button class="btn" onclick="obDone()">開始使用</button>
+      <button class="btn outline" onclick="showOnboard(0)">上一步</button>
+    `;
+  }
+}
+
+function obNext() {
+  if(!obProfile.name || !obProfile.shopName) { alert('請填寫名字和鼠舍名稱'); return; }
+  showOnboard(1);
+}
+
+function obDone() {
+  DATA = {
+    profile: {...obProfile},
+    entries: [],
+    products: [{
+      id:uid(), name:'', category:'自配糧',
+      ingredients:[{id:uid(),name:'',url:'',totalGrams:'',totalPrice:'',usedGrams:'',source:'online'}],
+      packagingCost:'', laborCost:'', outputQty:'', outputUnit:'包', sellPrice:'', stockTotal:'', stockNote:''
+    }],
+    sales: [], rawStocks: [], createdAt: today()
+  };
+  save(DATA);
+  document.getElementById('onboard').style.display = 'none';
+  showApp();
+}
+
+// ── App
+function showApp() {
+  document.getElementById('app').style.display = 'flex';
+  goNav('home');
+}
+
+function goNav(n) {
+  ['home','products','report','me'].forEach(k => {
+    document.getElementById('page-'+k).style.display = 'none';
+    document.getElementById('nd-'+k).classList.remove('active');
+    document.getElementById('nl-'+k).classList.remove('active');
+  });
+  document.getElementById('page-'+n).style.display = 'block';
+  document.getElementById('nd-'+n).classList.add('active');
+  document.getElementById('nl-'+n).classList.add('active');
+  currentNav = n;
+  renderPage(n);
+}
+
+function renderPage(n) {
+  if(n==='home')     renderHome();
+  if(n==='products') renderProducts();
+  if(n==='report')   renderReport();
+  if(n==='me')       renderMe();
+}
+
+// ── Calc
+function calcProd(p) {
+  let ingCost = p.ingredients.reduce((s,i)=>{
+    const tg=parseFloat(i.totalGrams),tp=parseFloat(i.totalPrice),ug=parseFloat(i.usedGrams);
+    if(!tg||!tp||!ug) return s; return s+(tp/tg)*ug;
+  },0);
+  const pkg=parseFloat(p.packagingCost)||0, labor=parseFloat(p.laborCost)||0;
+  const total=ingCost+pkg+labor, qty=parseFloat(p.outputQty)||1, sell=parseFloat(p.sellPrice)||0;
+  const costPU=qty>0?total/qty:0, profitPU=sell-costPU;
+  const margin=sell>0?(profitPU/sell)*100:0;
+  return {ingCost,total,costPU,profitPU,margin,qty,sell};
+}
+
+function getAmt(e) { return parseFloat(e.amount)||((parseFloat(e.qty)||1)*(parseFloat(e.unitPrice)||0)); }
+
+function statGrid(items, dark) {
+  const dc = dark?'dark':'';
+  return `<div class="stat-grid" style="grid-template-columns:repeat(${items.length},1fr)">
+    ${items.map(it=>`<div class="stat-cell ${dc}"><div class="sl">${it.l}</div><div class="sv" style="${it.c?'color:'+it.c:''}">${it.v}</div></div>`).join('')}
+  </div>`;
+}
+
+// ═══════════════════════ HOME ═══════════════════════
+function renderHome() {
+  const {profile,entries} = DATA;
+  const thisM = new Date().toISOString().slice(0,7);
+  const mE = entries.filter(e=>e.date.startsWith(thisM));
+  const mInc = mE.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const mExp = mE.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+  const mNet = mInc - mExp;
+  const allInc = entries.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+  const allNet = allInc - allExp;
+  const recent = [...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+
+  // 6-month chart
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(); d.setMonth(d.getMonth()-i);
+    const m=d.toISOString().slice(0,7);
+    const me=entries.filter(e=>e.date.startsWith(m));
+    const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+    const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+    months.push({m,label:(d.getMonth()+1)+'月',inc,exp});
+  }
+  const maxV = Math.max(...months.map(m=>Math.max(m.inc,m.exp)),1);
+
+  const recentHtml = recent.length ? recent.map(e=>{
+    const a=getAmt(e);
+    const isInc=e.type==='income';
+    return `<div class="card anim" style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center;cursor:default">
+      <div>
+        <span class="tag" style="background:${isInc?'#3F5F4A18':'#7A3F3F18'};color:${isInc?'var(--pos)':'var(--neg)'}">${e.category}</span>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-top:4px">${e.item}</div>
+        <div style="font-size:10px;color:var(--inkF);margin-top:2px">${fmtD(e.date)}</div>
+      </div>
+      <div style="font-size:18px;color:${isInc?'var(--pos)':'var(--neg)'}">${isInc?'+':'-'}NT$ ${a.toFixed(0)}</div>
+    </div>`;
+  }).join('') : `<div style="text-align:center;padding:40px;color:var(--inkF);font-size:13px">點下方 + 開始記帳</div>`;
+
+  document.getElementById('page-home').innerHTML = `
+    <div class="dark-head">
+      <div style="font-size:12px;color:rgba(255,255,255,0.45);margin-bottom:4px">${new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric'})} · ${profile.shopName||'鼠舍帳本'}</div>
+      <div style="font-size:16px;color:var(--c0);margin-bottom:20px">${profile.name?'嗨，'+profile.name+'！':'歡迎回來'}</div>
+      <div style="background:rgba(255,255,255,0.08);border-radius:20px;padding:18px">
+        <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">${thisM.replace('-','年')}月結算</div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+          <div>
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">月淨收入</div>
+            <div style="font-size:34px;color:${mNet>=0?'var(--posL)':'var(--negL)'};font-weight:300">NT$ ${mNet.toFixed(0)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">累計淨收入</div>
+            <div style="font-size:20px;color:${allNet>=0?'var(--posL)':'var(--negL)'}">NT$ ${allNet.toFixed(0)}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">月收入</div>
+            <div style="font-size:16px;color:var(--posL)">NT$ ${mInc.toFixed(0)}</div>
+          </div>
+          <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">月支出</div>
+            <div style="font-size:16px;color:var(--negL)">NT$ ${mExp.toFixed(0)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card" style="padding:16px;cursor:default">
+      <div style="font-size:9px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase;margin-bottom:14px">近六個月</div>
+      <div style="display:flex;gap:6px;align-items:flex-end;height:70px">
+        ${months.map(m=>`
+          <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:0">
+            <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:56px">
+              <div style="width:100%;background:var(--posL);border-radius:3px;height:${Math.max(0,(m.inc/maxV)*56)}px;min-height:${m.inc>0?3:0}px;transition:height 0.5s ease"></div>
+              ${m.exp>0?`<div style="width:100%;background:var(--negL);border-radius:3px;height:${Math.max(0,(m.exp/maxV)*40)}px;min-height:3px"></div>`:''}
+            </div>
+            <div style="font-size:9px;color:${m.m===thisM?'var(--ink)':'var(--inkF)'};font-weight:${m.m===thisM?700:400};margin-top:4px">${m.label}</div>
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <div style="display:flex;gap:4px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:var(--posL)"></div><span style="font-size:9px;color:var(--inkF)">收入</span></div>
+        <div style="display:flex;gap:4px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:var(--negL)"></div><span style="font-size:9px;color:var(--inkF)">支出</span></div>
+      </div>
+    </div>
+
+    <div class="sec-title"><span>最近紀錄</span><button onclick="goNav('report')" style="background:none;border:none;font-size:11px;color:var(--c3);cursor:pointer">查看全部</button></div>
+    ${recentHtml}
+    <div style="height:10px"></div>
+  `;
+}
+
+// ═══════════════════════ PRODUCTS ═══════════════════════
+let selectedProd = null;
+let prodTab = 'info';
+
+function renderProducts() {
+  if(selectedProd) { renderProdDetail(); return; }
+  const {products} = DATA;
+  const rows = products.map((p,i)=>{
+    const s = calcProd(p);
+    const stock = parseFloat(p.stockTotal)||0;
+    return `<div class="card" onclick="selectProd('${p.id}')" style="padding:16px;cursor:pointer">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div style="flex:1">
+          <div style="font-size:9px;letter-spacing:0.14em;color:var(--c3);text-transform:uppercase;margin-bottom:3px">${String(i+1).padStart(2,'0')} — ${p.category}</div>
+          <div style="font-size:15px;font-weight:700;color:var(--ink)">${p.name||'未命名商品'}</div>
+          <div style="font-size:11px;color:var(--inkF);margin-top:2px">${p.outputQty||'—'} ${p.outputUnit}${p.sellPrice?' · NT$ '+p.sellPrice:''}</div>
+        </div>
+        ${p.sellPrice&&p.outputQty?`<div style="text-align:right"><div style="font-size:9px;color:var(--c3);text-transform:uppercase;margin-bottom:2px">毛利</div><div style="font-size:20px;color:${s.profitPU>0?'var(--pos)':s.profitPU<0?'var(--neg)':'var(--inkF)'}">${s.profitPU!==0?'NT$ '+s.profitPU.toFixed(0):'—'}</div></div>`:''}
+      </div>
+      ${statGrid([
+        {l:'成本',v:s.costPU>0?'NT$ '+s.costPU.toFixed(0):'—'},
+        {l:'利潤率',v:isNaN(s.margin)?'—':s.margin.toFixed(1)+'%',c:s.margin>=20?'var(--pos)':s.margin<0?'var(--neg)':''},
+        {l:'庫存',v:stock>0?stock+' '+p.outputUnit:'未設定'},
+      ])}
+    </div>`;
+  }).join('');
+  document.getElementById('page-products').innerHTML = `
+    <div class="sec-title"><span>商品管理</span>
+      <button onclick="addProd()" style="background:var(--ink);border:none;color:var(--w);font-family:'Noto Serif TC',serif;font-size:11px;font-weight:700;padding:7px 14px;border-radius:20px;cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform='scale(1)'">+ 新增</button>
+    </div>
+    <div class="anim">${rows}</div>
+  `;
+}
+
+function selectProd(id) { selectedProd=id; prodTab='info'; renderProducts(); }
+
+function addProd() {
+  const np={id:uid(),name:'',category:'自配糧',ingredients:[{id:uid(),name:'',url:'',totalGrams:'',totalPrice:'',usedGrams:'',source:'online'}],packagingCost:'',laborCost:'',outputQty:'',outputUnit:'包',sellPrice:'',stockTotal:'',stockNote:''};
+  DATA.products.push(np); save(DATA); selectProd(np.id);
+}
+
+function renderProdDetail() {
+  const p = DATA.products.find(x=>x.id===selectedProd);
+  if(!p) { selectedProd=null; renderProducts(); return; }
+  const s = calcProd(p);
+
+  const infoTab = `
+    <div class="field anim"><label>商品名稱</label><input value="${p.name}" placeholder="例：御用自配糧 100g" oninput="upProd('name',this.value)"/></div>
+    <div class="field anim2"><label>類別</label><select onchange="upProd('category',this.value)">${CATEGORIES.map(c=>`<option ${c===p.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field anim3"><label>製作數量</label><div style="display:flex;gap:6px;align-items:flex-end"><input type="number" value="${p.outputQty}" placeholder="10" oninput="upProd('outputQty',this.value)" style="flex:1;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:14px;color:var(--ink)"/><select style="width:48px;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:12px;color:var(--ink)" onchange="upProd('outputUnit',this.value)">${UNITS.map(u=>`<option ${u===p.outputUnit?'selected':''}>${u}</option>`).join('')}</select></div></div>
+      <div class="field anim3"><label>售價 NT$</label><input type="number" value="${p.sellPrice}" placeholder="150" oninput="upProd('sellPrice',this.value)"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field anim4"><label>現有庫存 (${p.outputUnit})</label><input type="number" value="${p.stockTotal}" placeholder="0" oninput="upProd('stockTotal',this.value)"/></div>
+      <div class="field anim4"><label>包材費 NT$</label><input type="number" value="${p.packagingCost}" placeholder="0" oninput="upProd('packagingCost',this.value)"/></div>
+    </div>
+    <div class="field anim5"><label>人工費 NT$</label><input type="number" value="${p.laborCost}" placeholder="0" oninput="upProd('laborCost',this.value)"/></div>
+
+    <div style="font-size:9px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase;margin:8px 0 14px">原料清單</div>
+    <div id="ing-list">${renderIngList(p)}</div>
+    <button class="btn outline anim" onclick="addIng()" style="margin-bottom:20px">+ 新增原料</button>
+
+    <div style="background:var(--ink);border-radius:18px;padding:18px;margin-bottom:20px" class="anim">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:14px">利潤分析</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+        <div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">單件毛利</div><div style="font-size:30px;color:${s.profitPU>0?'var(--posL)':s.profitPU<0?'var(--negL)':'rgba(255,255,255,0.3)'}">NT$ ${s.profitPU.toFixed(0)}</div></div>
+        <div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">利潤率</div><div style="font-size:26px;color:${s.margin>0?'var(--posL)':s.margin<0?'var(--negL)':'rgba(255,255,255,0.3)'}"> ${isNaN(s.margin)?'—':s.margin.toFixed(1)+'%'}</div></div>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.08);margin-bottom:12px"></div>
+      ${statGrid([{l:'原料成本',v:'NT$ '+s.ingCost.toFixed(0)},{l:'單件成本',v:'NT$ '+s.costPU.toFixed(0)},{l:'批次毛利',v:'NT$ '+(s.profitPU*s.qty).toFixed(0)}],true)}
+    </div>
+    ${DATA.products.length>1?`<button class="btn outline" onclick="delProd()" style="color:var(--negL);border-color:var(--negL);margin-bottom:20px">刪除此商品</button>`:''}
+  `;
+
+  // batch tab
+  const ingRows = p.ingredients.filter(i=>parseFloat(i.totalGrams)>0&&parseFloat(i.usedGrams)>0).map(i=>{
+    const total=parseFloat(i.totalGrams),used=parseFloat(i.usedGrams);
+    const max=Math.floor(total/used),rem=Math.max(0,total-used*max),short=rem<used,pct=(rem/total)*100;
+    const ppg=parseFloat(i.totalPrice)/total;
+    return {name:i.name||'原料',total,used,max,rem,short,pct,ppg:isNaN(ppg)?0:ppg,url:i.url,source:i.source};
+  });
+  const maxBatch = ingRows.length?Math.min(...ingRows.map(r=>r.max)):0;
+
+  const batchTab = `
+    <div style="background:var(--ink);border-radius:18px;padding:20px;margin-bottom:16px">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">可製作批次</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <div style="font-size:52px;color:var(--c0);font-weight:300">${maxBatch}</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.4)">批次</div>
+      </div>
+      ${p.outputQty?`<div style="font-size:11px;color:rgba(255,255,255,0.4)">共可產出 ${maxBatch*parseFloat(p.outputQty)} ${p.outputUnit}</div>`:''}
+    </div>
+    ${ingRows.map(r=>`
+      <div class="card" style="padding:14px;cursor:default">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">${r.name}</div>
+          <div style="font-size:13px;color:var(--c3)">${r.used} g / 批</div>
+        </div>
+        <div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(100,r.pct)}%;background:${r.pct>30?'var(--c3)':'var(--negL)'}"></div></div>
+        ${statGrid([{l:'購入',v:r.total+'g'},{l:'剩餘',v:r.rem.toFixed(1)+'g',c:r.rem<r.used?'var(--negL)':'var(--pos)'},{l:'缺口',v:r.short?(r.used-r.rem).toFixed(1)+'g':'足夠',c:r.short?'var(--negL)':'var(--pos)'}])}
+        ${r.short?`<div style="font-size:10px;color:var(--negL);margin-top:8px">需補購 ${(r.used-r.rem).toFixed(1)} g${r.ppg>0?' · 約 NT$ '+((r.used-r.rem)*r.ppg).toFixed(0):''}${r.source==='online'&&r.url?` · <a href="${r.url}" target="_blank" style="color:var(--c3)">購買</a>`:''}  </div>`:''}
+      </div>`).join('')}
+    ${ingRows.length===0?'<div style="text-align:center;padding:40px;font-size:13px;color:var(--inkF)">請先在「資訊」頁填寫原料資料</div>':''}
+  `;
+
+  document.getElementById('page-products').innerHTML = `
+    <div style="padding:16px 20px 0;flex-shrink:0">
+      <button onclick="backProd()" style="background:none;border:none;font-size:11px;color:var(--c3);cursor:pointer;margin-bottom:12px;transition:opacity 0.15s" ontouchstart="this.style.opacity='0.5'" ontouchend="this.style.opacity='1'">← 返回</button>
+      <div style="font-size:9px;letter-spacing:0.16em;color:var(--c3);text-transform:uppercase;margin-bottom:3px">${p.category}</div>
+      <div style="font-size:20px;font-weight:700;color:var(--ink);margin-bottom:14px">${p.name||'未命名商品'}</div>
+      <div style="display:flex;border-bottom:1.5px solid var(--c0);margin:0 -20px;padding:0 20px">
+        ${[['info','資訊'],['batch','製作']].map(([k,l])=>`
+          <button onclick="setProdTab('${k}')" style="flex:1;padding:10px 0;border:none;background:transparent;font-family:'Noto Serif TC',serif;font-size:11px;font-weight:${prodTab===k?700:400};color:${prodTab===k?'var(--ink)':'var(--inkF)'};border-bottom:${prodTab===k?'2px solid var(--ink)':'2px solid transparent'};margin-bottom:-1.5px;cursor:pointer;transition:all 0.2s">${l}</button>`).join('')}
+      </div>
+    </div>
+    <div style="padding:16px 20px 90px;overflow-y:auto;flex:1" id="prod-tab-body">
+      ${prodTab==='info'?infoTab:batchTab}
+    </div>
+  `;
+}
+
+function renderIngList(p) {
+  return p.ingredients.map((ing,idx)=>`
+    <div style="background:var(--c0);border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+        <div style="font-size:9px;letter-spacing:0.12em;color:var(--c3);text-transform:uppercase">原料 ${String(idx+1).padStart(2,'0')}</div>
+        <div style="display:flex;gap:10px;align-items:center">
+          <div style="display:flex;border:1px solid var(--c1);border-radius:8px;overflow:hidden">
+            <button onclick="upIng('${ing.id}','source','online')" style="padding:4px 10px;border:none;background:${ing.source==='online'?'var(--ink)':'transparent'};color:${ing.source==='online'?'var(--w)':'var(--c3)'};font-family:'Noto Serif TC',serif;font-size:10px;font-weight:600;cursor:pointer;transition:all 0.18s">網購</button>
+            <button onclick="upIng('${ing.id}','source','offline')" style="padding:4px 10px;border:none;background:${ing.source==='offline'?'var(--ink)':'transparent'};color:${ing.source==='offline'?'var(--w)':'var(--c3)'};font-family:'Noto Serif TC',serif;font-size:10px;font-weight:600;cursor:pointer;transition:all 0.18s">實體</button>
+          </div>
+          ${p.ingredients.length>1?`<button onclick="delIng('${ing.id}')" style="background:none;border:none;color:var(--c2);cursor:pointer;font-size:18px;line-height:1">×</button>`:''}
+        </div>
+      </div>
+      <div class="field"><label>名稱</label><input value="${ing.name}" placeholder="燕麥片" oninput="upIng('${ing.id}','name',this.value)" style="border-bottom-color:var(--c1)"/></div>
+      ${ing.source==='online'?`<div class="field"><label>購買連結</label><input value="${ing.url||''}" placeholder="https://..." oninput="upIng('${ing.id}','url',this.value)" style="border-bottom-color:var(--c1)"/></div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+        <div class="field"><label>購買總量g</label><input type="number" value="${ing.totalGrams}" placeholder="1000" oninput="upIng('${ing.id}','totalGrams',this.value)" style="border-bottom-color:var(--c1)"/></div>
+        <div class="field"><label>金額 NT$</label><input type="number" value="${ing.totalPrice}" placeholder="200" oninput="upIng('${ing.id}','totalPrice',this.value)" style="border-bottom-color:var(--c1)"/></div>
+        <div class="field"><label>用量 g</label><input type="number" value="${ing.usedGrams}" placeholder="50" oninput="upIng('${ing.id}','usedGrams',this.value)" style="border-bottom-color:var(--c1)"/></div>
+      </div>
+      ${(()=>{
+        const total=parseFloat(ing.totalGrams),used=parseFloat(ing.usedGrams);
+        if(!total||!used) return '';
+        const max=Math.floor(total/used),rem=Math.max(0,total-used*max),short=rem<used,pct=(rem/total)*100;
+        const ppg=parseFloat(ing.totalPrice)/total;
+        return `<div class="bar-wrap"><div class="bar-fill" style="width:${Math.min(100,pct)}%;background:${pct>25?'var(--c3)':'var(--negL)'}"></div></div>
+        ${statGrid([{l:'可做批次',v:max+' 批'},{l:'做完剩餘',v:rem.toFixed(1)+' g'},{l:'下批缺口',v:short?(used-rem).toFixed(1)+' g':'足夠',c:short?'var(--negL)':'var(--pos)'}])}
+        ${short?`<div style="font-size:10px;color:var(--negL);margin-top:6px">需補購 ${(used-rem).toFixed(1)} g${!isNaN(ppg)&&ppg>0?' · 約 NT$ '+((used-rem)*ppg).toFixed(0):''}</div>`:''}`;
+      })()}
+    </div>`).join('');
+}
+
+function upProd(key, val) {
+  const p = DATA.products.find(x=>x.id===selectedProd);
+  if(!p) return;
+  p[key] = val; save(DATA);
+  // re-render profit panel inline if needed
+}
+function upIng(iid, key, val) {
+  const p = DATA.products.find(x=>x.id===selectedProd);
+  if(!p) return;
+  const i = p.ingredients.find(x=>x.id===iid);
+  if(!i) return;
+  i[key]=val; save(DATA);
+  document.getElementById('ing-list').innerHTML = renderIngList(p);
+}
+function addIng() {
+  const p = DATA.products.find(x=>x.id===selectedProd);
+  if(!p) return;
+  p.ingredients.push({id:uid(),name:'',url:'',totalGrams:'',totalPrice:'',usedGrams:'',source:'online'});
+  save(DATA);
+  document.getElementById('ing-list').innerHTML = renderIngList(p);
+}
+function delIng(iid) {
+  const p = DATA.products.find(x=>x.id===selectedProd);
+  if(!p||p.ingredients.length<=1) return;
+  p.ingredients = p.ingredients.filter(x=>x.id!==iid); save(DATA);
+  document.getElementById('ing-list').innerHTML = renderIngList(p);
+}
+function delProd() {
+  if(!confirm('確定要刪除此商品嗎？')) return;
+  DATA.products = DATA.products.filter(x=>x.id!==selectedProd);
+  if(!DATA.products.length) DATA.products=[{id:uid(),name:'',category:'自配糧',ingredients:[{id:uid(),name:'',url:'',totalGrams:'',totalPrice:'',usedGrams:'',source:'online'}],packagingCost:'',laborCost:'',outputQty:'',outputUnit:'包',sellPrice:'',stockTotal:'',stockNote:''}];
+  save(DATA); selectedProd=null; renderProducts();
+}
+function backProd() { selectedProd=null; renderProducts(); }
+function setProdTab(t) { prodTab=t; renderProdDetail(); }
+
+// ═══════════════════════ REPORT ═══════════════════════
+let reportView = 'month';
+let expandM = null;
+let expandY = null;
+
+function renderReport() {
+  const entries = DATA.entries||[];
+  const sorted = [...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const allInc = sorted.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp = sorted.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+
+  const byMonth = {};
+  sorted.forEach(e=>{
+    const m=e.date.slice(0,7);
+    if(!byMonth[m]) byMonth[m]={income:0,expense:0,entries:[]};
+    const a=getAmt(e);
+    if(e.type==='income') byMonth[m].income+=a; else byMonth[m].expense+=a;
+    byMonth[m].entries.push(e);
+  });
+  const byYear = {};
+  Object.entries(byMonth).forEach(([m,d])=>{
+    const y=m.slice(0,4);
+    if(!byYear[y]) byYear[y]={income:0,expense:0,months:{}};
+    byYear[y].income+=d.income; byYear[y].expense+=d.expense; byYear[y].months[m]=d;
+  });
+
+  let content = '';
+  if(reportView==='month') {
+    const rows = Object.entries(byMonth).sort(([a],[b])=>b.localeCompare(a)).map(([month,d])=>{
+      const net=d.income-d.expense, isOpen=expandM===month;
+      const catMap={};
+      d.entries.forEach(e=>{ if(!catMap[e.category]) catMap[e.category]={total:0,type:e.type,entries:[]}; catMap[e.category].total+=getAmt(e); catMap[e.category].entries.push(e); });
+      const detail = isOpen ? Object.entries(catMap).map(([cat,cd])=>`
+        <div style="border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="display:flex;justify-content:space-between;padding:9px 16px;background:rgba(255,255,255,0.04)">
+            <span style="font-size:11px;font-weight:700;color:var(--c1)">${cat}</span>
+            <span style="font-size:13px;color:${cd.type==='income'?'var(--posL)':'var(--negL)'}">NT$ ${cd.total.toFixed(0)}</span>
+          </div>
+          ${cd.entries.map(e=>`<div style="display:flex;justify-content:space-between;padding:8px 16px 8px 28px;border-top:1px solid rgba(255,255,255,0.04)">
+            <div><div style="font-size:12px;color:var(--c0)">${e.item}</div><div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:1px">${fmtD(e.date)}${e.note?' · '+e.note:''}</div></div>
+            <div style="font-size:14px;color:${e.type==='income'?'var(--posL)':'var(--negL)'}">NT$ ${getAmt(e).toFixed(0)}</div>
+          </div>`).join('')}
+        </div>`).join('') : '';
+      return `<div class="card" onclick="toggleExpandM('${month}')" style="background:${isOpen?'var(--ink)':'var(--w)'};cursor:pointer">
+        <div style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div><div style="font-size:9px;letter-spacing:0.2em;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};text-transform:uppercase;margin-bottom:3px">Monthly</div>
+              <div style="font-size:15px;font-weight:700;color:${isOpen?'var(--c0)':'var(--ink)'}">${month.replace('-','年')}月</div></div>
+            <div style="text-align:right"><div style="font-size:9px;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};margin-bottom:2px">淨收入</div>
+              <div style="font-size:20px;color:${net>=0?(isOpen?'var(--posL)':'var(--pos)'):(isOpen?'var(--negL)':'var(--neg)')}"">NT$ ${net.toFixed(0)}</div></div>
+          </div>
+          ${statGrid([{l:'收入',v:'NT$ '+d.income.toFixed(0)},{l:'支出',v:'NT$ '+d.expense.toFixed(0)},{l:'筆數',v:d.entries.length+' 筆'}],isOpen)}
+        </div>${detail}</div>`;
+    }).join('');
+    content = rows || '<div style="text-align:center;padding:40px;font-size:13px;color:var(--inkF)">尚無月份紀錄</div>';
+  }
+
+  if(reportView==='year') {
+    const rows = Object.entries(byYear).sort(([a],[b])=>b.localeCompare(a)).map(([year,d])=>{
+      const net=d.income-d.expense, isOpen=expandY===year;
+      const detail = isOpen ? Object.entries(d.months).sort(([a],[b])=>b.localeCompare(a)).map(([m,md])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="font-size:12px;color:var(--c1)">${m.slice(5)}月</div>
+          <div style="display:flex;gap:12px">
+            <span style="font-size:12px;color:var(--posL)">+${md.income.toFixed(0)}</span>
+            ${md.expense>0?`<span style="font-size:12px;color:var(--negL)">-${md.expense.toFixed(0)}</span>`:''}
+            <span style="font-size:13px;font-weight:700;color:${(md.income-md.expense)>=0?'var(--posL)':'var(--negL)'}">NT$ ${(md.income-md.expense).toFixed(0)}</span>
+          </div>
+        </div>`).join('') : '';
+      return `<div class="card" onclick="toggleExpandY('${year}')" style="background:${isOpen?'var(--ink)':'var(--w)'};cursor:pointer">
+        <div style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div><div style="font-size:9px;letter-spacing:0.2em;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};text-transform:uppercase;margin-bottom:3px">Annual</div>
+              <div style="font-size:18px;font-weight:700;color:${isOpen?'var(--c0)':'var(--ink)'}">${year} 年</div></div>
+            <div style="text-align:right"><div style="font-size:9px;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};margin-bottom:2px">年度淨收入</div>
+              <div style="font-size:22px;color:${net>=0?(isOpen?'var(--posL)':'var(--pos)'):(isOpen?'var(--negL)':'var(--neg)')}"">NT$ ${net.toFixed(0)}</div></div>
+          </div>
+          ${statGrid([{l:'年度收入',v:'NT$ '+d.income.toFixed(0)},{l:'年度支出',v:'NT$ '+d.expense.toFixed(0)},{l:'月份數',v:Object.keys(d.months).length+' 個月'}],isOpen)}
+        </div>${detail}</div>`;
+    }).join('');
+    content = rows || '<div style="text-align:center;padding:40px;font-size:13px;color:var(--inkF)">尚無年度紀錄</div>';
+  }
+
+  if(reportView==='list') {
+    content = sorted.length ? sorted.map(e=>{
+      const a=getAmt(e),isInc=e.type==='income';
+      return `<div class="card" style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center;cursor:default">
+        <div><div style="margin-bottom:3px"><span class="tag" style="background:${isInc?'#3F5F4A18':'#7A3F3F18'};color:${isInc?'var(--pos)':'var(--neg)'}">${e.category}</span></div>
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">${e.item}</div>
+          <div style="font-size:9px;color:var(--inkF);margin-top:2px">${fmtD(e.date)}${e.note?' · '+e.note:''}</div></div>
+        <div style="text-align:right"><div style="font-size:17px;color:${isInc?'var(--pos)':'var(--neg)'}">${isInc?'+':'-'}NT$ ${a.toFixed(0)}</div>
+          ${(parseFloat(e.qty)||1)>1?`<div style="font-size:9px;color:var(--inkF)">×${e.qty} @ ${e.unitPrice}</div>`:''}</div>
+      </div>`;
+    }).join('') : '<div style="text-align:center;padding:40px;font-size:13px;color:var(--inkF)">尚無紀錄</div>';
+  }
+
+  document.getElementById('page-report').innerHTML = `
+    <div class="dark-head">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:12px">All Time — 累計</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+        <div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">累計淨收入</div>
+          <div style="font-size:34px;font-weight:300;color:${(allInc-allExp)>=0?'var(--posL)':'var(--negL)'}">NT$ ${(allInc-allExp).toFixed(0)}</div></div>
+        <button onclick="exportCSV()" style="background:rgba(255,255,255,0.1);border:none;color:var(--c2);font-family:'Noto Serif TC',serif;font-size:10px;letter-spacing:0.06em;padding:8px 14px;border-radius:20px;cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform='scale(1)'">匯出 CSV</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">總收入</div><div style="font-size:16px;color:var(--posL)">NT$ ${allInc.toFixed(0)}</div></div>
+        <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">總支出</div><div style="font-size:16px;color:var(--negL)">NT$ ${allExp.toFixed(0)}</div></div>
+      </div>
+    </div>
+    <div class="view-tabs">
+      <button class="view-tab ${reportView==='month'?'active':''}" onclick="setReportView('month')">月份</button>
+      <button class="view-tab ${reportView==='year'?'active':''}" onclick="setReportView('year')">年度</button>
+      <button class="view-tab ${reportView==='list'?'active':''}" onclick="setReportView('list')">明細</button>
+    </div>
+    <div class="anim">${content}</div>
+  `;
+}
+
+function setReportView(v) { reportView=v; expandM=null; expandY=null; renderReport(); }
+function toggleExpandM(m) { expandM=expandM===m?null:m; renderReport(); }
+function toggleExpandY(y) { expandY=expandY===y?null:y; renderReport(); }
+
+function exportCSV() {
+  const entries=DATA.entries||[];
+  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=[['日期','類別','項目','數量','單價','金額','類型','備註'],
+    ...sorted.map(e=>[e.date,e.category,e.item,e.qty||1,e.unitPrice,getAmt(e).toFixed(0),e.type==='income'?'收入':'支出',e.note||''])];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='鼠舍帳本.csv'; a.click(); URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════ ME ═══════════════════════
+function renderMe() {
+  const {profile,entries,products}=DATA;
+  const allInc=(entries||[]).filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp=(entries||[]).filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+
+  document.getElementById('page-me').innerHTML = `
+    <div class="dark-head">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px">
+        <div class="avatar">${profile.name?profile.name[0]:'R'}</div>
+        <div><div style="font-size:16px;font-weight:700;color:var(--c0)">${profile.name||'鼠舍板娘'}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${profile.shopName||'Rodent Atelier'}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        ${[{l:'商品數',v:products.length},{l:'累計收入',v:'NT$ '+allInc.toFixed(0)},{l:'累計淨利',v:'NT$ '+(allInc-allExp).toFixed(0),c:(allInc-allExp)>=0?'var(--posL)':'var(--negL)'}].map(item=>`
+          <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+            <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">${item.l}</div>
+            <div style="font-size:14px;color:${item.c||'var(--c0)'}">${item.v}</div>
+          </div>`).join('')}
+      </div>
+    </div>
+
+    <div class="sec-title"><span>帳號資訊</span></div>
+    <div class="card" style="padding:16px;cursor:default">
+      <div class="field"><label>你的名字</label><input value="${profile.name||''}" placeholder="例：小嗚" oninput="upProfile('name',this.value)"/></div>
+      <div class="field"><label>鼠舍名稱</label><input value="${profile.shopName||''}" placeholder="例：嗚粒鼠舍" oninput="upProfile('shopName',this.value)"/></div>
+      <div class="field"><label>聯絡電話</label><input value="${profile.phone||''}" placeholder="選填" oninput="upProfile('phone',this.value)"/></div>
+      <div class="field"><label>備註</label><input value="${profile.note||''}" placeholder="選填" oninput="upProfile('note',this.value)"/></div>
+    </div>
+
+    <div class="sec-title"><span>資料管理</span></div>
+    <div style="padding:0 14px">
+      <button class="btn outline" onclick="exportBackup()" style="margin-bottom:10px">匯出備份檔案（JSON）</button>
+      <div style="font-size:11px;color:var(--inkF);line-height:1.7;padding:4px 2px">資料自動儲存於本機。如需在其他裝置使用，請匯出備份。</div>
+    </div>
+    <div style="text-align:center;padding:30px 0 10px">
+      <div style="font-size:11px;letter-spacing:0.2em;color:var(--c2)">Rodent Atelier 鼠舍帳本</div>
+    </div>
+  `;
+}
+
+function upProfile(key,val) { DATA.profile[key]=val; save(DATA); }
+function exportBackup() {
+  const blob=new Blob([JSON.stringify(DATA,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download='鼠舍帳本備份.json'; a.click(); URL.revokeObjectURL(url);
+}
+
+// ═══════════════════════ QUICK ENTRY ═══════════════════════
+function openEntry() {
+  entryType='income';
+  document.getElementById('entry-overlay').style.display='block';
+  renderEntry();
+}
+function closeEntry() { document.getElementById('entry-overlay').style.display='none'; }
+
+let entryForm = {date:today(),category:'鼠鼠販售',item:'',qty:'1',unitPrice:'',note:''};
+
+function renderEntry() {
+  const cats = entryType==='income'?INCOME_CATS:EXPENSE_CATS;
+  const amt = (parseFloat(entryForm.qty)||0)*(parseFloat(entryForm.unitPrice)||0);
+  document.getElementById('entry-body').innerHTML = `
+    <div class="toggle">
+      <button onclick="setEntryType('income')" style="background:${entryType==='income'?'var(--ink)':'transparent'};color:${entryType==='income'?'var(--w)':'var(--c3)'}">收入</button>
+      <button onclick="setEntryType('expense')" style="background:${entryType==='expense'?'var(--ink)':'transparent'};color:${entryType==='expense'?'var(--w)':'var(--c3)'}">支出</button>
+    </div>
+    <div class="field"><label>類別</label><select onchange="entryForm.category=this.value" style="appearance:none;-webkit-appearance:none">${cats.map(c=>`<option ${c===entryForm.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>項目說明</label><input value="${entryForm.item}" placeholder="例：布丁鼠一隻、主食糧100g" oninput="entryForm.item=this.value"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div class="field"><label>數量</label><input type="number" value="${entryForm.qty}" placeholder="1" oninput="entryForm.qty=this.value;renderEntry()"/></div>
+      <div class="field"><label>單價 NT$</label><input type="number" value="${entryForm.unitPrice}" placeholder="0" oninput="entryForm.unitPrice=this.value;renderEntry()"/></div>
+      <div class="field"><label>日期</label><input type="date" value="${entryForm.date}" oninput="entryForm.date=this.value"/></div>
+    </div>
+    ${amt>0?`<div style="background:var(--c0);border-radius:12px;padding:12px 16px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--inkF)">小計</span>
+      <span style="font-size:20px;color:${entryType==='income'?'var(--pos)':'var(--neg)'}">NT$ ${amt.toFixed(0)}</span>
+    </div>`:''}
+    <div class="field"><label>備註</label><input value="${entryForm.note||''}" placeholder="選填" oninput="entryForm.note=this.value"/></div>
+    <button class="btn" onclick="saveEntry()" ${!entryForm.item||!entryForm.unitPrice?'disabled':''}>記錄此筆</button>
+  `;
+}
+
+function setEntryType(t) {
+  entryType=t;
+  entryForm.category=t==='income'?'鼠鼠販售':'原料支出';
+  renderEntry();
+}
+
+function saveEntry() {
+  if(!entryForm.item||!entryForm.unitPrice) return;
+  const amt=(parseFloat(entryForm.qty)||1)*(parseFloat(entryForm.unitPrice)||0);
+  const entry={id:uid(),date:entryForm.date,category:entryForm.category,item:entryForm.item,qty:entryForm.qty,unitPrice:entryForm.unitPrice,note:entryForm.note,type:entryType,amount:amt};
+  if(!DATA.entries) DATA.entries=[];
+  DATA.entries.unshift(entry);
+  save(DATA);
+  entryForm={date:today(),category:entryType==='income'?'鼠鼠販售':'原料支出',item:'',qty:'1',unitPrice:'',note:''};
+  closeEntry();
+  if(currentNav==='home') renderHome();
+  if(currentNav==='report') renderReport();
+}
+</script>
+</body>
+</html>
