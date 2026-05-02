@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>鼠舍帳本</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --c0:#ECE9E4;--c1:#D6D3CE;--c2:#B5BDC5;--c3:#919BA6;
+  --ink:#1C1C1C;--inkM:#555;--inkF:#999;--w:#FAFAF9;
+  --pos:#3F5F4A;--posL:#8fba97;--neg:#7A3F3F;--negL:#c4837e;
+}
+html,body{height:100%;overflow:hidden;background:var(--c0);font-family:'Noto Serif TC',serif}
+#app{position:fixed;inset:0;display:flex;flex-direction:column;background:var(--c0);display:none}
+.page{flex:1;overflow-y:auto;padding-bottom:88px}
+input,select,button{font-family:'Noto Serif TC',serif}
+input[type="password"]{letter-spacing:0.2em}
+input::placeholder{color:var(--c1);letter-spacing:0}
+input:focus,select:focus{outline:none;border-bottom-color:var(--c3)!important}
+::-webkit-scrollbar{width:0}
+
+/* ── Splash ── */
+#splash{position:fixed;inset:0;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:44px;z-index:1000;transition:opacity 0.5s ease}
+#splash.hide{opacity:0;pointer-events:none}
+@keyframes logoIn{from{opacity:0;letter-spacing:0.5em}to{opacity:1;letter-spacing:0.2em}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes bounce{0%,80%,100%{transform:scaleY(0.4)}40%{transform:scaleY(1)}}
+@keyframes slideUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes modalIn{from{transform:translateY(100%)}to{transform:translateY(0)}}
+@keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-8px)}40%,80%{transform:translateX(8px)}}
+.dots{display:flex;gap:6px}
+.dot{width:4px;height:14px;background:var(--c3);border-radius:2px}
+.dot:nth-child(1){animation:bounce 1s ease-in-out 0s infinite}
+.dot:nth-child(2){animation:bounce 1s ease-in-out 0.15s infinite}
+.dot:nth-child(3){animation:bounce 1s ease-in-out 0.3s infinite}
+.anim {animation:slideUp 0.32s cubic-bezier(.22,1,.36,1) both}
+.anim2{animation:slideUp 0.32s cubic-bezier(.22,1,.36,1) 0.06s both}
+.anim3{animation:slideUp 0.32s cubic-bezier(.22,1,.36,1) 0.12s both}
+.anim4{animation:slideUp 0.32s cubic-bezier(.22,1,.36,1) 0.18s both}
+.anim5{animation:slideUp 0.32s cubic-bezier(.22,1,.36,1) 0.24s both}
+.fade{animation:fadeIn 0.28s ease both}
+
+/* ── Login ── */
+#login-screen{position:fixed;inset:0;background:var(--w);z-index:900;display:none;flex-direction:column}
+.login-body{flex:1;padding:56px 28px 20px;display:flex;flex-direction:column;justify-content:center}
+.login-foot{padding:0 28px 48px}
+.login-title{font-size:32px;font-weight:300;color:var(--ink);margin-bottom:6px;line-height:1.1}
+.login-sub{font-size:13px;color:var(--c3);margin-bottom:36px;line-height:1.6}
+
+/* ── Bottom Nav ── */
+#nav{position:fixed;bottom:0;left:0;right:0;background:var(--w);border-top:1px solid var(--c0);display:flex;align-items:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:100}
+.nav-btn{flex:1;padding:12px 0 10px;border:none;background:transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;transition:transform 0.15s}
+.nav-btn:active{transform:scale(0.92)}
+.nav-dot{width:18px;height:2px;border-radius:1px;background:transparent;transition:all 0.25s}
+.nav-dot.on{background:var(--ink)}
+.nav-lbl{font-size:10px;color:var(--inkF);font-weight:400;transition:all 0.2s;letter-spacing:0.04em}
+.nav-lbl.on{color:var(--ink);font-weight:700}
+.fab{width:52px;height:52px;border-radius:50%;background:var(--ink);border:none;color:white;font-size:28px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 18px rgba(28,28,28,0.28);transition:transform 0.15s;line-height:1;padding-bottom:2px}
+.fab:active{transform:scale(0.9)}
+
+/* ── Cards ── */
+.card{background:var(--w);border-radius:16px;margin:0 14px 10px;overflow:hidden;transition:transform 0.15s,box-shadow 0.15s}
+.card.tap:active{transform:scale(0.985);box-shadow:0 2px 12px rgba(0,0,0,0.08)}
+
+/* ── Buttons ── */
+.btn{width:100%;padding:14px;border-radius:13px;border:none;background:var(--ink);color:var(--w);font-size:13px;font-weight:700;letter-spacing:0.08em;cursor:pointer;transition:transform 0.15s,opacity 0.2s}
+.btn:active{transform:scale(0.97)}
+.btn:disabled{background:var(--c1);color:var(--c3);cursor:default;transform:none}
+.btn.out{background:transparent;border:1.5px solid var(--c1);color:var(--ink)}
+.btn.danger{background:transparent;border:1.5px solid var(--negL);color:var(--negL)}
+
+/* ── Modal sheet ── */
+.overlay{position:fixed;inset:0;background:rgba(28,28,28,0.45);backdrop-filter:blur(5px);z-index:400;animation:fadeIn 0.25s ease}
+.sheet{position:fixed;bottom:0;left:0;right:0;background:var(--w);border-radius:24px 24px 0 0;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;z-index:401;animation:modalIn 0.38s cubic-bezier(.22,1,.36,1)}
+.sheet-head{padding:16px 20px 12px;border-bottom:1px solid var(--c0);display:flex;justify-content:space-between;align-items:center;flex-shrink:0}
+.sheet-body{overflow-y:auto;padding:16px 20px 48px;flex:1}
+.sheet-title{font-size:15px;font-weight:700;color:var(--ink)}
+.close-btn{background:none;border:none;font-size:24px;color:var(--c3);cursor:pointer;line-height:1;padding:0 4px;transition:transform 0.15s}
+.close-btn:active{transform:scale(0.88)}
+
+/* ── Form ── */
+.field{margin-bottom:20px}
+.field label{display:block;font-size:10px;font-weight:600;letter-spacing:0.12em;color:var(--c3);text-transform:uppercase;margin-bottom:6px}
+.field input,.field select{width:100%;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:14px;color:var(--ink);display:block;transition:border-color 0.2s}
+.field select{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23919BA6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 4px center}
+
+/* ── Toggle ── */
+.toggle{display:flex;background:var(--c0);border-radius:13px;padding:3px;margin-bottom:20px}
+.toggle button{flex:1;padding:9px;border:none;border-radius:10px;font-size:12px;font-weight:700;cursor:pointer;transition:all 0.2s;letter-spacing:0.04em}
+
+/* ── View tabs ── */
+.vtabs{display:flex;background:var(--c0);border-radius:13px;padding:3px;margin:0 14px 12px}
+.vtab{flex:1;padding:9px;border:none;border-radius:10px;font-size:11px;font-weight:400;color:var(--inkF);cursor:pointer;transition:all 0.22s;background:transparent}
+.vtab.on{background:var(--w);color:var(--ink);font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,0.08)}
+
+/* ── Bar ── */
+.bar{height:3px;background:rgba(0,0,0,0.07);border-radius:2px;overflow:hidden;margin:7px 0}
+.bar-fill{height:100%;border-radius:2px;background:var(--c3);transition:width 0.55s cubic-bezier(.22,1,.36,1)}
+
+/* ── Stat row ── */
+.sgrid{display:grid}
+.scell{padding:9px 12px;border-right:1px solid var(--c0)}
+.scell:last-child{border-right:none}
+.scell .sl{font-size:9px;color:var(--c3);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:3px}
+.scell .sv{font-size:14px;color:var(--ink);line-height:1}
+.scell.dk .sl{color:rgba(255,255,255,0.38)}
+.scell.dk .sv{color:var(--c0)}
+.scell.dk{border-color:rgba(255,255,255,0.1)}
+
+/* ── Dark header ── */
+.dhead{background:var(--ink);padding:52px 20px 20px;border-radius:0 0 28px 28px;margin-bottom:14px}
+
+/* ── Section title ── */
+.stitle{display:flex;justify-content:space-between;align-items:center;padding:18px 16px 8px}
+.stitle span{font-size:10px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase}
+
+/* ── Tag ── */
+.tag{display:inline-block;font-size:9px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:0.06em}
+
+/* ── Avatar ── */
+.avatar{width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.1);display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--c1);flex-shrink:0;font-weight:300}
+
+/* ── Empty state ── */
+.empty{text-align:center;padding:60px 20px}
+.empty-icon{font-size:36px;color:var(--c1);margin-bottom:12px}
+.empty-text{font-size:13px;color:var(--c3);margin-bottom:4px}
+.empty-sub{font-size:11px;color:var(--inkF)}
+
+/* ── Onboarding ── */
+#onboard{position:fixed;inset:0;background:var(--w);z-index:800;display:none;flex-direction:column}
+.ob-body{flex:1;padding:60px 28px 20px;overflow-y:auto}
+.ob-foot{padding:0 28px 48px;display:flex;flex-direction:column;gap:10px}
+
+/* ── Confirm dialog ── */
+.confirm-overlay{position:fixed;inset:0;background:rgba(28,28,28,0.5);z-index:600;display:flex;align-items:flex-end;animation:fadeIn 0.2s ease}
+.confirm-box{background:var(--w);border-radius:20px 20px 0 0;padding:24px 20px 48px;width:100%;animation:modalIn 0.3s cubic-bezier(.22,1,.36,1)}
+</style>
+</head>
+<body>
+
+<!-- Splash -->
+<div id="splash">
+  <div style="text-align:center">
+    <div style="font-size:36px;color:var(--c0);letter-spacing:0.2em;font-weight:300;margin-bottom:8px;animation:logoIn 1s ease both">Rodent</div>
+    <div style="font-size:11px;color:var(--c3);letter-spacing:0.3em;animation:fadeIn 0.8s ease 0.3s both">鼠舍帳本</div>
+    <div style="height:1px;background:linear-gradient(to right,transparent,var(--c3),transparent);margin-top:12px;animation:fadeIn 0.8s ease 0.5s both"></div>
+  </div>
+  <div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+</div>
+
+<!-- Login -->
+<div id="login-screen">
+  <div class="login-body">
+    <div class="anim">
+      <div style="font-size:10px;letter-spacing:0.28em;color:var(--c3);text-transform:uppercase;margin-bottom:12px">Rodent Atelier</div>
+      <div class="login-title">歡迎回來</div>
+      <div class="login-sub">登入你的帳號<br/>繼續管理你的鼠舍帳本</div>
+    </div>
+    <div class="anim2">
+      <div class="field"><label>帳號名稱</label><input id="li-user" type="text" placeholder="輸入你設定的帳號" autocomplete="username"/></div>
+      <div class="field"><label>密碼</label><input id="li-pass" type="password" placeholder="輸入密碼" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div id="li-err" style="font-size:11px;color:var(--negL);margin-top:-8px;margin-bottom:12px;display:none">帳號或密碼錯誤，請再試一次</div>
+    </div>
+  </div>
+  <div class="login-foot">
+    <button class="btn anim3" onclick="doLogin()">登入</button>
+    <div style="text-align:center;margin-top:16px">
+      <button onclick="showRegister()" style="background:none;border:none;font-size:12px;color:var(--c3);cursor:pointer;letter-spacing:0.04em;text-decoration:underline;text-decoration-color:var(--c1)">還沒有帳號？點此註冊</button>
+    </div>
+  </div>
+</div>
+
+<!-- Register -->
+<div id="register-screen" style="position:fixed;inset:0;background:var(--w);z-index:910;display:none;flex-direction:column">
+  <div class="login-body">
+    <div class="anim">
+      <div style="font-size:10px;letter-spacing:0.28em;color:var(--c3);text-transform:uppercase;margin-bottom:12px">新帳號</div>
+      <div class="login-title">建立帳號</div>
+      <div class="login-sub">設定你的帳號和密碼<br/>資料會儲存在這台裝置</div>
+    </div>
+    <div class="anim2">
+      <div class="field"><label>你的名字</label><input id="rg-name" type="text" placeholder="例：小嗚"/></div>
+      <div class="field"><label>鼠舍名稱</label><input id="rg-shop" type="text" placeholder="例：嗚粒鼠舍"/></div>
+      <div class="field"><label>帳號名稱</label><input id="rg-user" type="text" placeholder="設定登入帳號" autocomplete="username"/></div>
+      <div class="field"><label>密碼</label><input id="rg-pass" type="password" placeholder="設定密碼（至少4位）" autocomplete="new-password"/></div>
+      <div id="rg-err" style="font-size:11px;color:var(--negL);margin-top:-8px;margin-bottom:12px;display:none"></div>
+    </div>
+  </div>
+  <div style="padding:0 28px 48px;display:flex;flex-direction:column;gap:10px">
+    <button class="btn anim3" onclick="doRegister()">建立帳號</button>
+    <button class="btn out" onclick="showLogin()">返回登入</button>
+  </div>
+</div>
+
+<!-- Onboarding (after register, fill profile details) -->
+<div id="onboard">
+  <div class="ob-body" id="ob-body"></div>
+  <div class="ob-foot" id="ob-foot"></div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <div id="nav">
+    <button class="nav-btn" onclick="goNav('home')" id="nb-home"><div class="nav-dot" id="nd-home"></div><div class="nav-lbl" id="nl-home">首頁</div></button>
+    <button class="nav-btn" onclick="goNav('products')" id="nb-products"><div class="nav-dot" id="nd-products"></div><div class="nav-lbl" id="nl-products">商品</div></button>
+    <div style="flex:1;display:flex;justify-content:center;align-items:center;padding:8px 0"><button class="fab" onclick="openEntry()">+</button></div>
+    <button class="nav-btn" onclick="goNav('report')" id="nb-report"><div class="nav-dot" id="nd-report"></div><div class="nav-lbl" id="nl-report">報表</div></button>
+    <button class="nav-btn" onclick="goNav('me')" id="nb-me"><div class="nav-dot" id="nd-me"></div><div class="nav-lbl" id="nl-me">我的</div></button>
+  </div>
+  <div id="page-home"     class="page" style="display:none"></div>
+  <div id="page-products" class="page" style="display:none"></div>
+  <div id="page-report"   class="page" style="display:none"></div>
+  <div id="page-me"       class="page" style="display:none"></div>
+</div>
+
+<!-- Quick Entry Modal -->
+<div id="entry-modal" style="display:none">
+  <div class="overlay" onclick="closeEntry()"></div>
+  <div class="sheet"><div class="sheet-head"><div class="sheet-title">快速記帳</div><button class="close-btn" onclick="closeEntry()">×</button></div><div class="sheet-body" id="entry-body"></div></div>
+</div>
+
+<!-- Confirm dialog -->
+<div id="confirm-modal" style="display:none"></div>
+
+<script>
+// ════════════════════════════════════════
+// CORE
+// ════════════════════════════════════════
+const uid  = () => Date.now()+'-'+Math.random().toString(36).slice(2,6);
+const today= () => new Date().toISOString().slice(0,10);
+const fmtD = d  => d?d.slice(5).replace('-','/') :'';
+const fmtM = d  => d?d.slice(0,7).replace('-','年')+'月':'';
+const NT   = n  => (n===''||n==null||isNaN(n))?'—':'NT$ '+Number(n).toFixed(0);
+const NT1  = n  => (n===''||n==null||isNaN(n))?'—':'NT$ '+Number(n).toFixed(1);
+
+const INCOME_CATS  = ['鼠鼠販售','主食糧','零食點心','用品墊材','其他收入'];
+const EXPENSE_CATS = ['原料支出','包材支出','其他支出'];
+const CATEGORIES   = ['自配糧','零食點心','墊材','玩具','其他商品'];
+const UNITS        = ['包','罐','份','盒','個','kg','g'];
+
+// ── LocalStorage helpers
+const USERS_KEY = 'ra-users-v1';
+const DATA_PFX  = 'ra-data-v1-';
+let CURRENT_USER = null;
+let DATA = null;
+
+function loadUsers(){ try{ return JSON.parse(localStorage.getItem(USERS_KEY)||'{}'); }catch(e){ return {}; } }
+function saveUsers(u){ localStorage.setItem(USERS_KEY, JSON.stringify(u)); }
+function loadData(username){ try{ const v=localStorage.getItem(DATA_PFX+username); return v?JSON.parse(v):null; }catch(e){ return null; } }
+function saveData(){ if(!CURRENT_USER||!DATA) return; localStorage.setItem(DATA_PFX+CURRENT_USER, JSON.stringify(DATA)); }
+
+function mkIng(){ return {id:uid(),name:'',url:'',totalGrams:'',totalPrice:'',usedGrams:'',source:'online'}; }
+function mkProd(){ return {id:uid(),name:'',category:'自配糧',ingredients:[mkIng()],packagingCost:'',laborCost:'',outputQty:'',outputUnit:'包',sellPrice:'',stockTotal:'',stockNote:''}; }
+function mkEntry(){ return {id:uid(),date:today(),category:'鼠鼠販售',item:'',qty:'1',unitPrice:'',note:'',type:'income',amount:0}; }
+
+function getAmt(e){ return parseFloat(e.amount)||((parseFloat(e.qty)||1)*(parseFloat(e.unitPrice)||0)); }
+
+function calcProd(p){
+  const ingCost=p.ingredients.reduce((s,i)=>{
+    const tg=parseFloat(i.totalGrams),tp=parseFloat(i.totalPrice),ug=parseFloat(i.usedGrams);
+    if(!tg||!tp||!ug) return s; return s+(tp/tg)*ug;
+  },0);
+  const pkg=parseFloat(p.packagingCost)||0,labor=parseFloat(p.laborCost)||0;
+  const total=ingCost+pkg+labor,qty=parseFloat(p.outputQty)||1,sell=parseFloat(p.sellPrice)||0;
+  const costPU=qty>0?total/qty:0,profitPU=sell-costPU,margin=sell>0?(profitPU/sell)*100:0;
+  return {ingCost,total,costPU,profitPU,margin,qty,sell};
+}
+
+// ── UI helpers
+function sg(items,dark){
+  const dc=dark?'dk':'';
+  return `<div class="sgrid" style="grid-template-columns:repeat(${items.length},1fr)">
+    ${items.map(it=>`<div class="scell ${dc}"><div class="sl">${it.l}</div><div class="sv" style="${it.c?'color:'+it.c:''}">${it.v}</div></div>`).join('')}
+  </div>`;
+}
+function bar(pct,color){ return `<div class="bar"><div class="bar-fill" style="width:${Math.min(100,Math.max(0,pct))}%;background:${color||'var(--c3)'}"></div></div>`; }
+function tag(label,inc){ return `<span class="tag" style="background:${inc?'#3F5F4A18':'#7A3F3F18'};color:${inc?'var(--pos)':'var(--neg)'}">${label}</span>`; }
+function emptyState(text,sub){ return `<div class="empty"><div class="empty-icon">◎</div><div class="empty-text">${text}</div>${sub?`<div class="empty-sub">${sub}</div>`:''}</div>`; }
+
+function showConfirm(title, msg, onYes, yesLabel='確認刪除', yesColor='var(--negL)'){
+  const el = document.getElementById('confirm-modal');
+  el.style.display='flex';
+  el.innerHTML=`<div class="confirm-overlay" onclick="closeConfirm()">
+    <div class="confirm-box" onclick="event.stopPropagation()">
+      <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:8px">${title}</div>
+      <div style="font-size:13px;color:var(--inkF);margin-bottom:24px;line-height:1.6">${msg}</div>
+      <div style="display:flex;gap:10px">
+        <button class="btn out" onclick="closeConfirm()" style="flex:1">取消</button>
+        <button class="btn" onclick="(${onYes.toString()})();closeConfirm()" style="flex:1;background:transparent;border:1.5px solid ${yesColor};color:${yesColor}">${yesLabel}</button>
+      </div>
+    </div>
+  </div>`;
+}
+function closeConfirm(){ document.getElementById('confirm-modal').style.display='none'; }
+
+// ════════════════════════════════════════
+// AUTH
+// ════════════════════════════════════════
+window.onload = () => {
+  setTimeout(()=>{
+    const lastUser = localStorage.getItem('ra-last-user');
+    const splash = document.getElementById('splash');
+    splash.classList.add('hide');
+    setTimeout(()=>{ splash.style.display='none'; }, 500);
+    if(lastUser && loadData(lastUser)){
+      CURRENT_USER = lastUser;
+      DATA = loadData(lastUser);
+      showApp();
+    } else {
+      showLogin();
+    }
+  }, 2200);
+};
+
+function showLogin(){
+  document.getElementById('register-screen').style.display='none';
+  document.getElementById('onboard').style.display='none';
+  const el = document.getElementById('login-screen');
+  el.style.display='flex';
+  document.getElementById('li-err').style.display='none';
+  setTimeout(()=>document.getElementById('li-user').focus(),300);
+}
+
+function showRegister(){
+  document.getElementById('login-screen').style.display='none';
+  const el = document.getElementById('register-screen');
+  el.style.display='flex';
+  document.getElementById('rg-err').style.display='none';
+}
+
+function doLogin(){
+  const user = document.getElementById('li-user').value.trim();
+  const pass = document.getElementById('li-pass').value;
+  const users = loadUsers();
+  if(!user||!pass){ showErr('li-err','請填寫帳號和密碼'); return; }
+  if(!users[user]){ showErr('li-err','找不到此帳號'); return; }
+  if(users[user].password !== btoa(pass)){ showErr('li-err','密碼錯誤，請再試一次'); return; }
+  document.getElementById('li-pass').value='';
+  CURRENT_USER = user;
+  DATA = loadData(user);
+  localStorage.setItem('ra-last-user', user);
+  document.getElementById('login-screen').style.display='none';
+  showApp();
+}
+
+function doRegister(){
+  const name = document.getElementById('rg-name').value.trim();
+  const shop = document.getElementById('rg-shop').value.trim();
+  const user = document.getElementById('rg-user').value.trim();
+  const pass = document.getElementById('rg-pass').value;
+  const err  = document.getElementById('rg-err');
+  if(!name){ showErr('rg-err','請填寫你的名字'); return; }
+  if(!shop){ showErr('rg-err','請填寫鼠舍名稱'); return; }
+  if(!user){ showErr('rg-err','請設定帳號名稱'); return; }
+  if(pass.length < 4){ showErr('rg-err','密碼至少需要 4 位'); return; }
+  const users = loadUsers();
+  if(users[user]){ showErr('rg-err','此帳號名稱已被使用，請換一個'); return; }
+  users[user] = { password: btoa(pass), name, shopName: shop, createdAt: today() };
+  saveUsers(users);
+  CURRENT_USER = user;
+  DATA = {
+    profile:{ name, shopName: shop, phone:'', note:'' },
+    entries:[], products:[mkProd()], sales:[], rawStocks:[], createdAt: today()
+  };
+  saveData();
+  localStorage.setItem('ra-last-user', user);
+  document.getElementById('register-screen').style.display='none';
+  showApp();
+}
+
+function showErr(id, msg){
+  const el = document.getElementById(id);
+  el.textContent = msg;
+  el.style.display='block';
+  el.style.animation='none';
+  setTimeout(()=>el.style.animation='shake 0.4s ease',10);
+}
+
+function doLogout(){
+  showConfirm('確定要登出嗎？','登出後需重新登入。你的資料會保留在這台裝置。',
+    ()=>{ localStorage.removeItem('ra-last-user'); location.reload(); },
+    '登出','var(--c3)');
+}
+
+function changePassword(){
+  const modal = document.getElementById('confirm-modal');
+  modal.style.display='flex';
+  modal.innerHTML=`<div class="confirm-overlay">
+    <div class="confirm-box">
+      <div style="font-size:16px;font-weight:700;color:var(--ink);margin-bottom:16px">修改密碼</div>
+      <div class="field"><label>目前密碼</label><input id="cp-old" type="password" placeholder="輸入目前密碼"/></div>
+      <div class="field"><label>新密碼</label><input id="cp-new" type="password" placeholder="至少 4 位"/></div>
+      <div id="cp-err" style="font-size:11px;color:var(--negL);margin-top:-10px;margin-bottom:12px;display:none"></div>
+      <div style="display:flex;gap:10px">
+        <button class="btn out" onclick="closeConfirm()" style="flex:1">取消</button>
+        <button class="btn" onclick="confirmChangePass()" style="flex:1">確認修改</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function confirmChangePass(){
+  const oldP = document.getElementById('cp-old').value;
+  const newP = document.getElementById('cp-new').value;
+  const users = loadUsers();
+  if(users[CURRENT_USER].password !== btoa(oldP)){ showErr('cp-err','目前密碼錯誤'); return; }
+  if(newP.length<4){ showErr('cp-err','新密碼至少需要 4 位'); return; }
+  users[CURRENT_USER].password = btoa(newP);
+  saveUsers(users);
+  closeConfirm();
+  alert('密碼已修改成功');
+}
+
+// ════════════════════════════════════════
+// APP
+// ════════════════════════════════════════
+let currentNav = 'home';
+let selectedProd = null;
+let prodTab = 'info';
+let reportView = 'month';
+let expandM = null;
+let expandY = null;
+let entryType = 'income';
+let entryForm = {};
+
+function showApp(){
+  document.getElementById('app').style.display='flex';
+  goNav('home');
+}
+
+function goNav(n){
+  ['home','products','report','me'].forEach(k=>{
+    document.getElementById('page-'+k).style.display='none';
+    document.getElementById('nd-'+k).classList.remove('on');
+    document.getElementById('nl-'+k).classList.remove('on');
+  });
+  document.getElementById('page-'+n).style.display='block';
+  document.getElementById('nd-'+n).classList.add('on');
+  document.getElementById('nl-'+n).classList.add('on');
+  currentNav=n;
+  if(n==='home')     renderHome();
+  if(n==='products') { selectedProd=null; renderProducts(); }
+  if(n==='report')   { reportView='month'; expandM=null; expandY=null; renderReport(); }
+  if(n==='me')       renderMe();
+}
+
+// ════════════════════════════════════════
+// HOME
+// ════════════════════════════════════════
+function renderHome(){
+  const {profile,entries} = DATA;
+  const thisM = new Date().toISOString().slice(0,7);
+  const mE = entries.filter(e=>e.date.startsWith(thisM));
+  const mInc = mE.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const mExp = mE.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+  const mNet = mInc-mExp;
+  const allInc = entries.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp = entries.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+  const allNet = allInc-allExp;
+  const recent = [...entries].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+
+  const months=[];
+  for(let i=5;i>=0;i--){
+    const d=new Date(); d.setMonth(d.getMonth()-i);
+    const m=d.toISOString().slice(0,7);
+    const me=entries.filter(e=>e.date.startsWith(m));
+    const inc=me.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+    const exp=me.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+    months.push({m,label:(d.getMonth()+1)+'月',inc,exp});
+  }
+  const maxV=Math.max(...months.map(m=>Math.max(m.inc,m.exp)),1);
+
+  document.getElementById('page-home').innerHTML=`
+  <div class="dhead">
+    <div style="font-size:12px;color:rgba(255,255,255,0.4);margin-bottom:4px">${new Date().toLocaleDateString('zh-TW',{month:'long',day:'numeric',weekday:'short'})} · ${profile.shopName||'鼠舍帳本'}</div>
+    <div style="font-size:15px;color:var(--c0);margin-bottom:20px;font-weight:300">${profile.name?'嗨，'+profile.name+'！':'歡迎回來'}</div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:20px;padding:18px 18px 14px">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.32);text-transform:uppercase;margin-bottom:10px">${thisM.replace('-','年')}月結算</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+        <div><div style="font-size:9px;color:rgba(255,255,255,0.32);margin-bottom:4px">月淨收入</div>
+          <div style="font-size:32px;font-weight:300;color:${mNet>=0?'var(--posL)':'var(--negL)'}">NT$ ${mNet.toFixed(0)}</div></div>
+        <div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,0.32);margin-bottom:4px">累計淨收入</div>
+          <div style="font-size:20px;color:${allNet>=0?'var(--posL)':'var(--negL)'}">NT$ ${allNet.toFixed(0)}</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.32);margin-bottom:3px">月收入</div>
+          <div style="font-size:16px;color:var(--posL)">NT$ ${mInc.toFixed(0)}</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.32);margin-bottom:3px">月支出</div>
+          <div style="font-size:16px;color:var(--negL)">NT$ ${mExp.toFixed(0)}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card fade" style="padding:16px;cursor:default">
+    <div style="font-size:9px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase;margin-bottom:14px">近六個月收支</div>
+    <div style="display:flex;gap:5px;align-items:flex-end;height:72px">
+      ${months.map(m=>`
+        <div style="flex:1;display:flex;flex-direction:column;align-items:center">
+          <div style="width:100%;display:flex;flex-direction:column;justify-content:flex-end;gap:2px;height:58px">
+            <div style="width:100%;background:var(--posL);border-radius:3px 3px 0 0;height:${Math.max(0,(m.inc/maxV)*58)}px;min-height:${m.inc>0?3:0}px;transition:height 0.5s ease"></div>
+            ${m.exp>0?`<div style="width:100%;background:var(--negL);border-radius:3px;height:${Math.max(0,(m.exp/maxV)*36)}px;min-height:3px"></div>`:''}
+          </div>
+          <div style="font-size:9px;color:${m.m===thisM?'var(--ink)':'var(--inkF)'};font-weight:${m.m===thisM?700:400};margin-top:4px">${m.label}</div>
+        </div>`).join('')}
+    </div>
+    <div style="display:flex;gap:12px;margin-top:8px">
+      <div style="display:flex;gap:4px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:var(--posL)"></div><span style="font-size:9px;color:var(--inkF)">收入</span></div>
+      <div style="display:flex;gap:4px;align-items:center"><div style="width:8px;height:8px;border-radius:2px;background:var(--negL)"></div><span style="font-size:9px;color:var(--inkF)">支出</span></div>
+    </div>
+  </div>
+
+  <div class="stitle"><span>最近紀錄</span>
+    <button onclick="goNav('report')" style="background:none;border:none;font-size:11px;color:var(--c3);cursor:pointer;letter-spacing:0.04em">查看全部</button>
+  </div>
+  ${recent.length ? recent.map(e=>{
+    const a=getAmt(e),isInc=e.type==='income';
+    return `<div class="card tap fade" style="padding:13px 16px;display:flex;justify-content:space-between;align-items:center">
+      <div><div style="margin-bottom:3px">${tag(e.category,isInc)}</div>
+        <div style="font-size:13px;font-weight:700;color:var(--ink);margin-top:2px">${e.item}</div>
+        <div style="font-size:10px;color:var(--inkF);margin-top:2px">${fmtD(e.date)}${e.note?' · '+e.note:''}</div></div>
+      <div style="font-size:18px;color:${isInc?'var(--pos)':'var(--neg)'};flex-shrink:0;margin-left:12px">${isInc?'+':'-'}NT$ ${a.toFixed(0)}</div>
+    </div>`;
+  }).join('') : emptyState('還沒有紀錄','點下方 + 開始記帳')}
+  <div style="height:10px"></div>`;
+}
+
+// ════════════════════════════════════════
+// PRODUCTS
+// ════════════════════════════════════════
+function renderProducts(){
+  if(selectedProd){ renderProdDetail(); return; }
+  const {products} = DATA;
+  document.getElementById('page-products').innerHTML=`
+  <div class="stitle"><span>商品管理</span>
+    <button onclick="addProd()" style="background:var(--ink);border:none;color:var(--w);font-size:11px;font-weight:700;padding:7px 14px;border-radius:20px;cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform='scale(1)'">+ 新增</button>
+  </div>
+  <div class="anim">
+    ${products.length ? products.map((p,i)=>{
+      const s=calcProd(p);
+      const stock=parseFloat(p.stockTotal)||0;
+      return `<div class="card tap" onclick="selProd('${p.id}')" style="padding:16px;cursor:pointer">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div style="flex:1;min-width:0">
+            <div style="font-size:9px;letter-spacing:0.14em;color:var(--c3);text-transform:uppercase;margin-bottom:3px">${String(i+1).padStart(2,'0')} — ${p.category}</div>
+            <div style="font-size:15px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||'未命名商品'}</div>
+            <div style="font-size:11px;color:var(--inkF);margin-top:2px">${p.outputQty||'—'} ${p.outputUnit}${p.sellPrice?' · NT$ '+p.sellPrice+' / '+p.outputUnit:''}</div>
+          </div>
+          ${p.sellPrice&&p.outputQty?`<div style="text-align:right;margin-left:12px;flex-shrink:0">
+            <div style="font-size:9px;color:var(--c3);text-transform:uppercase;margin-bottom:2px">單件毛利</div>
+            <div style="font-size:20px;color:${s.profitPU>0?'var(--pos)':s.profitPU<0?'var(--neg)':'var(--inkF)'}">${s.profitPU!==0?NT(s.profitPU):'—'}</div>
+          </div>`:''}
+        </div>
+        ${sg([
+          {l:'單件成本',v:s.costPU>0?NT(s.costPU):'—'},
+          {l:'利潤率',v:isNaN(s.margin)?'—':s.margin.toFixed(1)+'%',c:s.margin>=20?'var(--pos)':s.margin<0?'var(--neg)':''},
+          {l:'庫存',v:stock>0?stock+' '+p.outputUnit:'未設定',c:stock>0&&stock<=5?'var(--negL)':''},
+        ])}
+      </div>`;
+    }).join('') : emptyState('還沒有商品','點右上角 + 新增第一個商品')}
+  </div>`;
+}
+
+function selProd(id){ selectedProd=id; prodTab='info'; renderProdDetail(); }
+function addProd(){
+  const np=mkProd(); DATA.products.push(np); saveData(); selProd(np.id);
+}
+
+function renderProdDetail(){
+  const p=DATA.products.find(x=>x.id===selectedProd);
+  if(!p){ selectedProd=null; renderProducts(); return; }
+  const s=calcProd(p);
+  const ingRows=p.ingredients.filter(i=>parseFloat(i.totalGrams)>0&&parseFloat(i.usedGrams)>0).map(i=>{
+    const total=parseFloat(i.totalGrams),used=parseFloat(i.usedGrams);
+    const max=Math.floor(total/used),rem=Math.max(0,total-used*max),short=rem<used,pct=(rem/total)*100;
+    const ppg=parseFloat(i.totalPrice)/total;
+    return {...i,max,rem,short,pct,ppg:isNaN(ppg)?0:ppg};
+  });
+  const maxBatch=ingRows.length?Math.min(...ingRows.map(r=>r.max)):0;
+
+  const infoHTML=`
+    <div class="field"><label>商品名稱</label><input value="${p.name}" placeholder="例：御用自配糧 100g" onchange="upProd('name',this.value)"/></div>
+    <div class="field"><label>類別</label><select onchange="upProd('category',this.value)">${CATEGORIES.map(c=>`<option ${c===p.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field"><label>製作數量</label><div style="display:flex;gap:6px;align-items:flex-end">
+        <input type="number" value="${p.outputQty}" placeholder="10" onchange="upProd('outputQty',this.value)" style="flex:1;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:14px;color:var(--ink)"/>
+        <select style="width:48px;padding:10px 0;border:none;border-bottom:1.5px solid var(--c1);background:transparent;font-size:12px;color:var(--ink);appearance:none" onchange="upProd('outputUnit',this.value)">${UNITS.map(u=>`<option ${u===p.outputUnit?'selected':''}>${u}</option>`).join('')}</select>
+      </div></div>
+      <div class="field"><label>售價 NT$</label><input type="number" value="${p.sellPrice}" placeholder="150" onchange="upProd('sellPrice',this.value)"/></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div class="field"><label>現有庫存 (${p.outputUnit})</label><input type="number" value="${p.stockTotal}" placeholder="0" onchange="upProd('stockTotal',this.value)"/></div>
+      <div class="field"><label>包材費 NT$</label><input type="number" value="${p.packagingCost}" placeholder="0" onchange="upProd('packagingCost',this.value)"/></div>
+    </div>
+    <div class="field"><label>人工費 NT$</label><input type="number" value="${p.laborCost}" placeholder="0" onchange="upProd('laborCost',this.value)"/></div>
+
+    <div style="font-size:9px;letter-spacing:0.2em;color:var(--c3);text-transform:uppercase;margin:4px 0 14px">原料清單</div>
+    <div id="ing-list">${renderIngList(p)}</div>
+    <button class="btn out" onclick="addIng()" style="margin-bottom:20px">+ 新增原料</button>
+
+    <div style="background:var(--ink);border-radius:18px;padding:18px;margin-bottom:16px">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:14px">利潤分析</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:14px">
+        <div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">單件毛利</div>
+          <div style="font-size:30px;font-weight:300;color:${s.profitPU>0?'var(--posL)':s.profitPU<0?'var(--negL)':'rgba(255,255,255,0.25)'}">NT$ ${s.profitPU.toFixed(0)}</div></div>
+        <div style="text-align:right"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">利潤率</div>
+          <div style="font-size:26px;color:${s.margin>0?'var(--posL)':s.margin<0?'var(--negL)':'rgba(255,255,255,0.25)'}">${isNaN(s.margin)?'—':s.margin.toFixed(1)+'%'}</div></div>
+      </div>
+      <div style="height:1px;background:rgba(255,255,255,0.08);margin-bottom:12px"></div>
+      ${sg([{l:'原料成本',v:'NT$ '+s.ingCost.toFixed(0)},{l:'單件成本',v:'NT$ '+s.costPU.toFixed(0)},{l:'批次毛利',v:'NT$ '+(s.profitPU*s.qty).toFixed(0)}],true)}
+    </div>
+    ${DATA.products.length>1?`<button class="btn danger" onclick="confirmDelProd()">刪除此商品</button><div style="height:16px"></div>`:''}`;
+
+  const batchHTML=`
+    <div style="background:var(--ink);border-radius:18px;padding:20px;margin-bottom:14px">
+      <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:10px">可製作批次</div>
+      <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:6px">
+        <div style="font-size:52px;font-weight:300;color:var(--c0);line-height:1">${maxBatch}</div>
+        <div style="font-size:14px;color:rgba(255,255,255,0.4)">批次</div>
+      </div>
+      ${p.outputQty?`<div style="font-size:11px;color:rgba(255,255,255,0.4)">共可產出 ${maxBatch*(parseFloat(p.outputQty)||0)} ${p.outputUnit}</div>`:''}
+    </div>
+    ${ingRows.length ? ingRows.map((r,i)=>`
+      <div class="card" style="padding:14px;cursor:default;margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px">
+          <div style="font-size:13px;font-weight:700;color:var(--ink)">${r.name||'未命名原料'}</div>
+          <div style="font-size:12px;color:var(--c3)">${r.used} g / 批</div>
+        </div>
+        ${bar(r.pct, r.pct>30?'var(--c3)':'var(--negL)')}
+        ${sg([{l:'購入',v:r.total+'g'},{l:'剩餘',v:r.rem.toFixed(1)+'g',c:r.rem<r.used?'var(--negL)':'var(--pos)'},{l:'下批缺口',v:r.short?(r.used-r.rem).toFixed(1)+'g':'足夠',c:r.short?'var(--negL)':'var(--pos)'}])}
+        ${r.short?`<div style="font-size:10px;color:var(--negL);margin-top:8px;line-height:1.6">需補購 ${(r.used-r.rem).toFixed(1)} g${r.ppg>0?' · 約 NT$ '+((r.used-r.rem)*r.ppg).toFixed(0):''}${r.source==='online'&&r.url?` · <a href="${r.url}" target="_blank" style="color:var(--c3)">前往購買</a>`:''}  </div>`:''}
+      </div>`).join('') : emptyState('請先在「資訊」填寫原料','填寫購買總量與配方用量')}`;
+
+  document.getElementById('page-products').innerHTML=`
+  <div style="padding:16px 20px 0;background:var(--w);border-bottom:1px solid var(--c0);position:sticky;top:0;z-index:10">
+    <button onclick="backProd()" style="background:none;border:none;font-size:11px;color:var(--c3);cursor:pointer;margin-bottom:10px;padding:0;letter-spacing:0.04em;transition:opacity 0.2s" ontouchstart="this.style.opacity='.5'" ontouchend="this.style.opacity='1'">← 返回商品列表</button>
+    <div style="font-size:9px;letter-spacing:0.16em;color:var(--c3);text-transform:uppercase;margin-bottom:2px">${p.category}</div>
+    <div style="font-size:18px;font-weight:700;color:var(--ink);margin-bottom:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${p.name||'未命名商品'}</div>
+    <div style="display:flex;border-top:1px solid var(--c0);margin:0 -20px;padding:0 20px">
+      ${[['info','商品資訊'],['batch','製作計算']].map(([k,l])=>`
+        <button onclick="setPTab('${k}')" style="flex:1;padding:10px 0;border:none;background:transparent;font-size:11px;font-weight:${prodTab===k?700:400};color:${prodTab===k?'var(--ink)':'var(--inkF)'};border-bottom:2px solid ${prodTab===k?'var(--ink)':'transparent'};margin-bottom:-1px;cursor:pointer;transition:all 0.2s">${l}</button>`).join('')}
+    </div>
+  </div>
+  <div style="padding:16px 20px 90px" class="anim">${prodTab==='info'?infoHTML:batchHTML}</div>`;
+}
+
+function renderIngList(p){
+  return p.ingredients.map((ing,idx)=>`
+  <div style="background:var(--c0);border-radius:14px;padding:14px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+      <div style="font-size:9px;letter-spacing:0.12em;color:var(--c3);text-transform:uppercase">原料 ${String(idx+1).padStart(2,'0')}</div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <div style="display:flex;border:1px solid var(--c1);border-radius:8px;overflow:hidden">
+          <button onclick="upIng('${ing.id}','source','online')" style="padding:4px 10px;border:none;background:${ing.source==='online'?'var(--ink)':'transparent'};color:${ing.source==='online'?'var(--w)':'var(--c3)'};font-size:10px;font-weight:600;cursor:pointer;transition:all 0.18s">網購</button>
+          <button onclick="upIng('${ing.id}','source','offline')" style="padding:4px 10px;border:none;background:${ing.source==='offline'?'var(--ink)':'transparent'};color:${ing.source==='offline'?'var(--w)':'var(--c3)'};font-size:10px;font-weight:600;cursor:pointer;transition:all 0.18s">實體</button>
+        </div>
+        ${p.ingredients.length>1?`<button onclick="confirmDelIng('${ing.id}')" style="background:none;border:none;color:var(--c2);cursor:pointer;font-size:20px;line-height:1;padding:0 2px">×</button>`:''}
+      </div>
+    </div>
+    <div class="field"><label>名稱</label><input value="${ing.name}" placeholder="燕麥片、葵花籽" onchange="upIng('${ing.id}','name',this.value)" style="border-bottom-color:var(--c1)"/></div>
+    ${ing.source==='online'?`<div class="field"><label>購買連結</label><input value="${ing.url||''}" placeholder="https://..." onchange="upIng('${ing.id}','url',this.value)" style="border-bottom-color:var(--c1)"/></div>`:''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="field"><label>購買總量 g</label><input type="number" value="${ing.totalGrams}" placeholder="1000" onchange="upIng('${ing.id}','totalGrams',this.value)" style="border-bottom-color:var(--c1)"/></div>
+      <div class="field"><label>金額 NT$</label><input type="number" value="${ing.totalPrice}" placeholder="200" onchange="upIng('${ing.id}','totalPrice',this.value)" style="border-bottom-color:var(--c1)"/></div>
+      <div class="field"><label>用量 g</label><input type="number" value="${ing.usedGrams}" placeholder="50" onchange="upIng('${ing.id}','usedGrams',this.value)" style="border-bottom-color:var(--c1)"/></div>
+    </div>
+    ${(()=>{
+      const total=parseFloat(ing.totalGrams),used=parseFloat(ing.usedGrams);
+      if(!total||!used) return '';
+      const max=Math.floor(total/used),rem=Math.max(0,total-used*max),short=rem<used,pct=(rem/total)*100;
+      const ppg=parseFloat(ing.totalPrice)/total;
+      return bar(pct,pct>25?'var(--c3)':'var(--negL)')+
+        sg([{l:'可做批次',v:max+' 批'},{l:'做完剩餘',v:rem.toFixed(1)+' g'},{l:'下批缺口',v:short?(used-rem).toFixed(1)+' g':'足夠',c:short?'var(--negL)':'var(--pos)'}])+
+        (short?`<div style="font-size:10px;color:var(--negL);margin-top:7px;line-height:1.6">需補購 ${(used-rem).toFixed(1)} g${!isNaN(ppg)&&ppg>0?' · 約 NT$ '+((used-rem)*ppg).toFixed(0):''}</div>`:'');
+    })()}
+  </div>`).join('');
+}
+
+function upProd(key,val){ const p=DATA.products.find(x=>x.id===selectedProd); if(!p) return; p[key]=val; saveData(); }
+function upIng(iid,key,val){
+  const p=DATA.products.find(x=>x.id===selectedProd); if(!p) return;
+  const i=p.ingredients.find(x=>x.id===iid); if(!i) return;
+  i[key]=val; saveData();
+  if(key!=='name'&&key!=='url') document.getElementById('ing-list').innerHTML=renderIngList(p);
+}
+function addIng(){
+  const p=DATA.products.find(x=>x.id===selectedProd); if(!p) return;
+  p.ingredients.push(mkIng()); saveData();
+  document.getElementById('ing-list').innerHTML=renderIngList(p);
+}
+function confirmDelIng(iid){
+  showConfirm('刪除原料','確定要刪除這個原料嗎？',()=>delIng(iid));
+}
+function delIng(iid){
+  const p=DATA.products.find(x=>x.id===selectedProd); if(!p||p.ingredients.length<=1) return;
+  p.ingredients=p.ingredients.filter(x=>x.id!==iid); saveData();
+  document.getElementById('ing-list').innerHTML=renderIngList(p);
+}
+function confirmDelProd(){
+  const p=DATA.products.find(x=>x.id===selectedProd);
+  showConfirm('刪除商品',`確定要刪除「${p?.name||'此商品'}」嗎？此操作無法復原。`,()=>delProd());
+}
+function delProd(){
+  DATA.products=DATA.products.filter(x=>x.id!==selectedProd);
+  if(!DATA.products.length) DATA.products=[mkProd()];
+  saveData(); selectedProd=null; renderProducts();
+}
+function backProd(){ selectedProd=null; renderProducts(); }
+function setPTab(t){ prodTab=t; renderProdDetail(); }
+
+// ════════════════════════════════════════
+// QUICK ENTRY
+// ════════════════════════════════════════
+function openEntry(){
+  entryType='income';
+  entryForm={date:today(),category:'鼠鼠販售',item:'',qty:'1',unitPrice:'',note:''};
+  document.getElementById('entry-modal').style.display='block';
+  renderEntry();
+}
+function closeEntry(){ document.getElementById('entry-modal').style.display='none'; }
+
+function renderEntry(){
+  const cats=entryType==='income'?INCOME_CATS:EXPENSE_CATS;
+  const amt=(parseFloat(entryForm.qty)||0)*(parseFloat(entryForm.unitPrice)||0);
+  document.getElementById('entry-body').innerHTML=`
+    <div class="toggle">
+      <button onclick="setEType('income')" style="background:${entryType==='income'?'var(--ink)':'transparent'};color:${entryType==='income'?'var(--w)':'var(--c3)'}">收入</button>
+      <button onclick="setEType('expense')" style="background:${entryType==='expense'?'var(--ink)':'transparent'};color:${entryType==='expense'?'var(--w)':'var(--c3)'}">支出</button>
+    </div>
+    <div class="field"><label>類別</label><select onchange="entryForm.category=this.value" style="appearance:none;-webkit-appearance:none;background-image:url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2710%27 height=%276%27%3E%3Cpath d=%27M0 0l5 6 5-6z%27 fill=%27%23919BA6%27/%3E%3C/svg%3E');background-repeat:no-repeat;background-position:right 4px center">${cats.map(c=>`<option ${c===entryForm.category?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="field"><label>項目說明</label><input id="ef-item" value="${entryForm.item}" placeholder="例：布丁鼠一隻、主食糧 100g" oninput="entryForm.item=this.value;chkSaveBtn()"/></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px">
+      <div class="field"><label>數量</label><input type="number" value="${entryForm.qty}" placeholder="1" oninput="entryForm.qty=this.value;updAmt()"/></div>
+      <div class="field"><label>單價 NT$</label><input id="ef-price" type="number" value="${entryForm.unitPrice}" placeholder="0" oninput="entryForm.unitPrice=this.value;updAmt();chkSaveBtn()"/></div>
+      <div class="field"><label>日期</label><input type="date" value="${entryForm.date}" onchange="entryForm.date=this.value"/></div>
+    </div>
+    <div id="amt-preview" style="display:${amt>0?'flex':'none'};background:var(--c0);border-radius:12px;padding:12px 16px;margin-bottom:16px;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--inkF)">小計</span>
+      <span id="amt-val" style="font-size:20px;color:${entryType==='income'?'var(--pos)':'var(--neg)'}">NT$ ${amt.toFixed(0)}</span>
+    </div>
+    <div class="field"><label>備註</label><input value="${entryForm.note||''}" placeholder="選填" oninput="entryForm.note=this.value"/></div>
+    <button class="btn" id="ef-save" onclick="saveEntry()" ${!entryForm.item||!entryForm.unitPrice?'disabled':''}>記錄此筆</button>
+  `;
+}
+
+function setEType(t){
+  entryType=t;
+  entryForm.category=t==='income'?'鼠鼠販售':'原料支出';
+  renderEntry();
+}
+function updAmt(){
+  const amt=(parseFloat(entryForm.qty)||0)*(parseFloat(entryForm.unitPrice)||0);
+  const el=document.getElementById('amt-preview');
+  if(!el) return;
+  const val=document.getElementById('amt-val');
+  if(amt>0){ el.style.display='flex'; if(val){ val.textContent='NT$ '+amt.toFixed(0); val.style.color=entryType==='income'?'var(--pos)':'var(--neg)'; } }
+  else el.style.display='none';
+}
+function chkSaveBtn(){
+  const btn=document.getElementById('ef-save');
+  if(!btn) return;
+  btn.disabled=!entryForm.item||!entryForm.unitPrice;
+}
+function saveEntry(){
+  if(!entryForm.item||!entryForm.unitPrice) return;
+  const amt=(parseFloat(entryForm.qty)||1)*(parseFloat(entryForm.unitPrice)||0);
+  const e={...mkEntry(),...entryForm,type:entryType,amount:amt};
+  if(!DATA.entries) DATA.entries=[];
+  DATA.entries.unshift(e);
+  saveData(); closeEntry();
+  if(currentNav==='home') renderHome();
+  if(currentNav==='report') renderReport();
+}
+
+// ════════════════════════════════════════
+// REPORT
+// ════════════════════════════════════════
+function renderReport(){
+  const entries=DATA.entries||[];
+  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const allInc=sorted.filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp=sorted.filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+
+  const byMonth={};
+  sorted.forEach(e=>{
+    const m=e.date.slice(0,7);
+    if(!byMonth[m]) byMonth[m]={income:0,expense:0,entries:[]};
+    const a=getAmt(e);
+    if(e.type==='income') byMonth[m].income+=a; else byMonth[m].expense+=a;
+    byMonth[m].entries.push(e);
+  });
+  const byYear={};
+  Object.entries(byMonth).forEach(([m,d])=>{
+    const y=m.slice(0,4);
+    if(!byYear[y]) byYear[y]={income:0,expense:0,months:{}};
+    byYear[y].income+=d.income; byYear[y].expense+=d.expense; byYear[y].months[m]=d;
+  });
+
+  let content='';
+  if(reportView==='month'){
+    const rows=Object.entries(byMonth).sort(([a],[b])=>b.localeCompare(a)).map(([month,d])=>{
+      const net=d.income-d.expense,isOpen=expandM===month;
+      const catMap={};
+      d.entries.forEach(e=>{ if(!catMap[e.category]) catMap[e.category]={total:0,type:e.type,entries:[]}; catMap[e.category].total+=getAmt(e); catMap[e.category].entries.push(e); });
+      const detail=isOpen?Object.entries(catMap).map(([cat,cd])=>`
+        <div style="border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="display:flex;justify-content:space-between;padding:9px 16px;background:rgba(255,255,255,0.04)">
+            <span style="font-size:11px;font-weight:700;color:var(--c1)">${cat}</span>
+            <span style="font-size:13px;color:${cd.type==='income'?'var(--posL)':'var(--negL)'}">NT$ ${cd.total.toFixed(0)}</span>
+          </div>
+          ${cd.entries.map(e=>`
+          <div style="padding:9px 16px 9px 26px;border-top:1px solid rgba(255,255,255,0.04)">
+            <div style="display:flex;justify-content:space-between;align-items:center">
+              <div style="flex:1;min-width:0">
+                <div style="font-size:12px;color:var(--c0);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.item}</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.28);margin-top:1px">${fmtD(e.date)}${e.note?' · '+e.note:''}</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;margin-left:10px;flex-shrink:0">
+                <div style="font-size:14px;color:${e.type==='income'?'var(--posL)':'var(--negL)'}">NT$ ${getAmt(e).toFixed(0)}</div>
+                <button onclick="event.stopPropagation();confirmDelEntry('${e.id}')" style="background:none;border:1px solid rgba(255,255,255,0.15);border-radius:6px;padding:3px 8px;font-size:9px;color:var(--negL);cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.88)'" ontouchend="this.style.transform='scale(1)'">刪除</button>
+              </div>
+            </div>
+          </div>`).join('')}
+        </div>`).join('') : '';
+      return `<div class="card tap" onclick="toggleM('${month}')" style="background:${isOpen?'var(--ink)':'var(--w)'};cursor:pointer">
+        <div style="padding:14px 16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+            <div><div style="font-size:9px;letter-spacing:0.2em;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};text-transform:uppercase;margin-bottom:3px">Monthly</div>
+              <div style="font-size:15px;font-weight:700;color:${isOpen?'var(--c0)':'var(--ink)'}">${month.replace('-','年')}月</div></div>
+            <div style="text-align:right"><div style="font-size:9px;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};margin-bottom:2px">淨收入</div>
+              <div style="font-size:20px;color:${net>=0?(isOpen?'var(--posL)':'var(--pos)'):(isOpen?'var(--negL)':'var(--neg)')}">${NT(net)}</div></div>
+          </div>
+          ${sg([{l:'收入',v:'NT$ '+d.income.toFixed(0)},{l:'支出',v:'NT$ '+d.expense.toFixed(0)},{l:'筆數',v:d.entries.length+' 筆'}],isOpen)}
+        </div>${detail}</div>`;
+    }).join('');
+    content=rows||emptyState('尚無月份紀錄','點下方 + 新增第一筆');
+  }
+
+  if(reportView==='year'){
+    const rows=Object.entries(byYear).sort(([a],[b])=>b.localeCompare(a)).map(([year,d])=>{
+      const net=d.income-d.expense,isOpen=expandY===year;
+      const detail=isOpen?Object.entries(d.months).sort(([a],[b])=>b.localeCompare(a)).map(([m,md])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 16px;border-top:1px solid rgba(255,255,255,0.06)">
+          <div style="font-size:12px;color:var(--c1)">${m.slice(5)}月</div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <span style="font-size:11px;color:var(--posL)">+${md.income.toFixed(0)}</span>
+            ${md.expense>0?`<span style="font-size:11px;color:var(--negL)">-${md.expense.toFixed(0)}</span>`:''}
+            <span style="font-size:13px;font-weight:700;color:${(md.income-md.expense)>=0?'var(--posL)':'var(--negL)'}">NT$ ${(md.income-md.expense).toFixed(0)}</span>
+          </div>
+        </div>`).join(''):'';
+      return `<div class="card tap" onclick="toggleY('${year}')" style="background:${isOpen?'var(--ink)':'var(--w)'};cursor:pointer">
+        <div style="padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+            <div><div style="font-size:9px;letter-spacing:0.2em;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};text-transform:uppercase;margin-bottom:3px">Annual</div>
+              <div style="font-size:18px;font-weight:700;color:${isOpen?'var(--c0)':'var(--ink)'}">${year} 年</div></div>
+            <div style="text-align:right"><div style="font-size:9px;color:${isOpen?'rgba(255,255,255,0.35)':'var(--c3)'};margin-bottom:2px">年度淨收入</div>
+              <div style="font-size:24px;color:${net>=0?(isOpen?'var(--posL)':'var(--pos)'):(isOpen?'var(--negL)':'var(--neg)')}">${NT(net)}</div></div>
+          </div>
+          ${sg([{l:'年度收入',v:'NT$ '+d.income.toFixed(0)},{l:'年度支出',v:'NT$ '+d.expense.toFixed(0)},{l:'月份數',v:Object.keys(d.months).length+' 個月'}],isOpen)}
+        </div>${detail}</div>`;
+    }).join('');
+    content=rows||emptyState('尚無年度紀錄','');
+  }
+
+  if(reportView==='list'){
+    content=sorted.length?`<div style="padding:0 14px">`+sorted.map(e=>{
+      const a=getAmt(e),isInc=e.type==='income';
+      return `<div class="card" style="padding:13px 16px;cursor:default;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div style="flex:1;min-width:0"><div style="margin-bottom:3px">${tag(e.category,isInc)}</div>
+            <div style="font-size:13px;font-weight:700;color:var(--ink);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.item}</div>
+            <div style="font-size:10px;color:var(--inkF);margin-top:2px">${fmtD(e.date)}${e.qty&&e.qty!='1'?' · '+e.qty+'件':''}${e.note?' · '+e.note:''}</div></div>
+          <div style="text-align:right;margin-left:12px;flex-shrink:0">
+            <div style="font-size:17px;color:${isInc?'var(--pos)':'var(--neg)'}">${isInc?'+':'-'}NT$ ${a.toFixed(0)}</div>
+            ${(parseFloat(e.qty)||1)>1?`<div style="font-size:9px;color:var(--inkF)">單價 NT$ ${parseFloat(e.unitPrice).toFixed(0)}</div>`:''}
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;border-top:1px solid var(--c0);padding-top:8px;margin-top:8px">
+          <button onclick="confirmDelEntry('${e.id}')" style="background:none;border:1px solid var(--c1);border-radius:8px;padding:4px 12px;font-size:10px;color:var(--negL);cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.9)'" ontouchend="this.style.transform='scale(1)'">刪除</button>
+        </div>
+      </div>`;
+    }).join('')+'</div>' : emptyState('尚無紀錄','點下方 + 開始記帳');
+  }
+
+  document.getElementById('page-report').innerHTML=`
+  <div class="dhead">
+    <div style="font-size:9px;letter-spacing:0.22em;color:rgba(255,255,255,0.35);text-transform:uppercase;margin-bottom:12px">All Time — 累計</div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:16px">
+      <div><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:4px">累計淨收入</div>
+        <div style="font-size:32px;font-weight:300;color:${(allInc-allExp)>=0?'var(--posL)':'var(--negL)'}">NT$ ${(allInc-allExp).toFixed(0)}</div></div>
+      <button onclick="exportCSV()" style="background:rgba(255,255,255,0.1);border:none;color:var(--c2);font-size:10px;letter-spacing:0.06em;padding:8px 14px;border-radius:20px;cursor:pointer;transition:transform 0.15s" ontouchstart="this.style.transform='scale(0.92)'" ontouchend="this.style.transform='scale(1)'">匯出 CSV</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">總收入</div><div style="font-size:16px;color:var(--posL)">NT$ ${allInc.toFixed(0)}</div></div>
+      <div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px"><div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">總支出</div><div style="font-size:16px;color:var(--negL)">NT$ ${allExp.toFixed(0)}</div></div>
+    </div>
+  </div>
+  <div class="vtabs">
+    <button class="vtab ${reportView==='month'?'on':''}" onclick="setRView('month')">月份</button>
+    <button class="vtab ${reportView==='year'?'on':''}" onclick="setRView('year')">年度</button>
+    <button class="vtab ${reportView==='list'?'on':''}" onclick="setRView('list')">明細</button>
+  </div>
+  <div class="anim">${content}</div>`;
+}
+
+function setRView(v){ reportView=v; expandM=null; expandY=null; renderReport(); }
+function toggleM(m){ expandM=expandM===m?null:m; renderReport(); }
+function toggleY(y){ expandY=expandY===y?null:y; renderReport(); }
+
+function confirmDelEntry(id){
+  showConfirm('刪除紀錄','確定要刪除這筆紀錄嗎？',()=>delEntry(id));
+}
+function delEntry(id){
+  DATA.entries=DATA.entries.filter(e=>e.id!==id); saveData();
+  renderReport();
+  if(currentNav==='home') renderHome();
+}
+
+function exportCSV(){
+  const entries=DATA.entries||[];
+  const sorted=[...entries].sort((a,b)=>b.date.localeCompare(a.date));
+  const rows=[['日期','類別','項目','數量','單價','金額','類型','備註'],
+    ...sorted.map(e=>[e.date,e.category,e.item,e.qty||1,e.unitPrice,getAmt(e).toFixed(0),e.type==='income'?'收入':'支出',e.note||''])];
+  const csv=rows.map(r=>r.join(',')).join('\n');
+  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`鼠舍帳本_${today()}.csv`; a.click(); URL.revokeObjectURL(url);
+}
+
+// ════════════════════════════════════════
+// ME PAGE
+// ════════════════════════════════════════
+function renderMe(){
+  const {profile,entries,products}=DATA;
+  const allInc=(entries||[]).filter(e=>e.type==='income').reduce((s,e)=>s+getAmt(e),0);
+  const allExp=(entries||[]).filter(e=>e.type==='expense').reduce((s,e)=>s+getAmt(e),0);
+  const users=loadUsers();
+  const acct=users[CURRENT_USER];
+
+  document.getElementById('page-me').innerHTML=`
+  <div class="dhead">
+    <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px">
+      <div class="avatar" style="font-size:22px">${profile.name?profile.name[0]:'R'}</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:var(--c0)">${profile.name||'鼠舍板娘'}</div>
+        <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-top:2px">${profile.shopName||'Rodent Atelier'}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,0.28);margin-top:1px">帳號：${CURRENT_USER}</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+      ${[{l:'商品數',v:products.length+' 項'},{l:'累計收入',v:'NT$ '+allInc.toFixed(0)},{l:'累計淨利',v:'NT$ '+(allInc-allExp).toFixed(0),c:(allInc-allExp)>=0?'var(--posL)':'var(--negL)'}]
+        .map(item=>`<div style="background:rgba(255,255,255,0.06);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:rgba(255,255,255,0.35);margin-bottom:3px">${item.l}</div>
+          <div style="font-size:14px;color:${item.c||'var(--c0)'};line-height:1.2">${item.v}</div>
+        </div>`).join('')}
+    </div>
+  </div>
+
+  <div class="stitle"><span>個人資料</span></div>
+  <div class="card" style="padding:16px;cursor:default">
+    <div class="field"><label>你的名字</label><input value="${profile.name||''}" placeholder="例：小嗚" onchange="upProfile('name',this.value)"/></div>
+    <div class="field"><label>鼠舍名稱</label><input value="${profile.shopName||''}" placeholder="例：嗚粒鼠舍" onchange="upProfile('shopName',this.value)"/></div>
+    <div class="field"><label>聯絡電話</label><input value="${profile.phone||''}" placeholder="選填" onchange="upProfile('phone',this.value)"/></div>
+    <div class="field" style="margin-bottom:0"><label>備註</label><input value="${profile.note||''}" placeholder="選填" onchange="upProfile('note',this.value)"/></div>
+  </div>
+
+  <div class="stitle"><span>帳號與安全</span></div>
+  <div style="padding:0 14px;display:flex;flex-direction:column;gap:10px">
+    <button class="btn out" onclick="changePassword()">修改密碼</button>
+    <button class="btn out" onclick="exportBackup()">匯出備份（JSON）</button>
+    <button class="btn danger" onclick="doLogout()">登出</button>
+  </div>
+
+  <div style="text-align:center;padding:28px 0 10px">
+    <div style="font-size:10px;letter-spacing:0.2em;color:var(--c2)">Rodent Atelier 鼠舍帳本</div>
+    <div style="font-size:10px;color:var(--c1);margin-top:3px">資料儲存於本機裝置</div>
+  </div>`;
+}
+
+function upProfile(key,val){ DATA.profile[key]=val; saveData(); }
+
+function exportBackup(){
+  const blob=new Blob([JSON.stringify({user:CURRENT_USER,data:DATA},null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=`鼠舍帳本備份_${today()}.json`; a.click(); URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>
